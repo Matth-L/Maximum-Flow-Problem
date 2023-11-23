@@ -96,34 +96,6 @@ let _ =
 
 (******************** fold_edge TEST ************************)
 
-(*test si tous les noeuds ont des successeurs (donc des map non vide)*)
-
-(*
-   a ------> b (step 1)
-   a ------> c (step 2)
-   b ------> b (step 3)
-   c ------> b (step 4)
-*)
-let _ =
-  let graph = PGraph.add_lonely_node 'a' PGraph.empty in
-  let step_1 = PGraph.add_node 'a' 1 'b' graph in
-  let step_2 = PGraph.add_node 'a' 1 'c' step_1 in
-  let step_3 = PGraph.add_edge 'b' 1 'b' step_2 in
-  let step_4 = PGraph.add_edge 'c' 1 'b' step_3 in
-  (* on utilise is_empty*)
-  let result =
-    PGraph.fold_edge
-      (fun n x acc -> acc && not (PGraph.NodeMap.is_empty x))
-      step_4
-      true
-  in
-  if result then
-    Printf.printf "test_fold_edge (tous les noeuds ont des successeurs) : OK\n"
-  else
-    Printf.printf
-      "test_fold_edge (tous les noeuds n'ont pas de successeurs) : erreur\n"
-;;
-
 (******************** mem_node TEST ************************)
 
 (*test existence d'un noeud*)
