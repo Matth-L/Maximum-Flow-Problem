@@ -85,7 +85,7 @@ module type S = sig
   @ensures un fold sur les successeurs du noeud
   @raises Rien
   *)
-  val fold_edge : (node -> 'a -> 'a) -> graph -> 'a -> 'a
+  val fold_succs : (node -> 'a -> 'a) -> graph -> 'a -> 'a
 
   (**********************  MEM FUNCTION ***********************************)
 
@@ -103,6 +103,12 @@ module type S = sig
   *)
   val mem_edge : node -> node -> graph -> bool
 
+  (**
+  @requires un noeud 
+  @ensures un booléen indiquant si node est un successeurs d'un élement dans le graph
+  @raises rien 
+  *)
+  val mem_exist_as_successor : node -> graph -> bool
   (**********************  ADDING FUNCTION ***********************************)
 
   (**
@@ -230,20 +236,19 @@ module Make (X : Map.OrderedType) = struct
      }
      l'un des élement qui recevra la fonction f sera b et c du noeud a par ex
   *)
-  let fold_edge (f : node -> 'a -> 'a) (g : graph) (acc : 'a) =
-    NodeMap.fold (fun noeud succs acc ->
-      (*on itère dans les clés du dico*)
-      (* lit : a succs ; b succs ; c succs *)
-      NodeMap.fold
-        (* lit : b 1 ; c 1*)
-          (fun n ponderation acc2 ->
-          (* on itere parmi les successeurs de cette clé *)
-          f n acc)
-        g
-        acc)
+  let fold_succs (f : node -> int -> 'a -> 'a) (g : graph) (acc : 'a) =
+    NodeMap.fold
+      (fun noeud successeur acc1 ->
+        NodeMap.fold
+          (fun noeudSuccs ponderation acc2 -> f noeudSuccs ponderation acc2)
+          successeur
+          acc1)
+      g
+      acc
   ;;
 
   (********************** MEM FUNCTION ***********************************)
+
   let mem_node (n : node) (g : graph) = NodeMap.mem n g
 
   let mem_edge (n1 : node) (n2 : node) (g : graph) =
@@ -254,6 +259,10 @@ module Make (X : Map.OrderedType) = struct
     else (
       let succs_of_n1 = succs n1 g in
       NodeMap.mem n2 succs_of_n1)
+  ;;
+
+  let mem_exist_as_successor (n : node) (g : graph) =
+    NodeMap.fold (fun noeud valeur acc -> acc || NodeMap.mem n valeur) g false
   ;;
 
   (**********************  ADDING FUNCTION ***********************************)
@@ -269,9 +278,13 @@ module Make (X : Map.OrderedType) = struct
 
   (* fais : n1 ----- (pond) ----> n2 ; si n1 et n2 existe dans le graph *)
   let add_edge (n1 : node) (pond : int) (n2 : node) (g : graph) =
+    (*si les 2 noeuds existent dans le graph*)
     if mem_node n1 g && mem_node n2 g then (
-      let updated_succs = NodeMap.add n2 pond (succs n1 g) in
-      (*the previous binding will be overwritten *)
+      (*on récupère les successeurs de n1 *)
+      let successor_of_n1 = succs n1 g in
+      (*on ajoute n2 à la liste des successeurs de n1*)
+      let updated_succs = NodeMap.add n2 pond successor_of_n1 in
+      (* on met à jour la clé *)
       NodeMap.add n1 updated_succs g)
     else
       failwith "add_edge : les 2 noeuds n'existent pas"
@@ -317,5 +330,20 @@ module Make (X : Map.OrderedType) = struct
     let graph_unlink_n1_to_n2 = remove_edge n1 n2 g in
     let graph_unlink_n2_to_n1 = remove_edge n2 n1 graph_unlink_n1_to_n2 in
     graph_unlink_n2_to_n1
+  ;;
+
+  let remove_node (n : node) (g : graph) =
+    let graph_without_successor_to_n =
+      (* pour le dictionnaire de successeurs, on applique remove,
+         afin d'enlever la clé n ,
+         et on ajoute cette nouvelle map à la clé , ce qui
+         met donc à jour ses successeurs*)
+      NodeMap.fold
+        (fun noeud valeur acc ->
+          NodeMap.add noeud (NodeMap.remove n valeur) acc)
+        g
+        NodeMap.empty
+    in
+    NodeMap.remove n graph_without_successor_to_n
   ;;
 end
