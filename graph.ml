@@ -59,15 +59,6 @@ module type S = sig
   *)
   val is_empty : graph -> bool
 
-  (**********************  FOLD FUNCTION ***********************************)
-
-  (**
-  @requires Rien
-  @ensures un fold sur le graph
-  @raises Rien
-  *)
-  val fold_node : (node -> 'a -> 'a) -> graph -> 'a -> 'a
-
   (**********************  SUCCS FUNCTION ***********************************)
 
   (**
@@ -77,6 +68,24 @@ module type S = sig
   @raises le noeud dont on cherche le successeur n'appartient pas au graph 
   *)
   val succs : node -> graph -> 'a NodeMap.t
+
+  (**********************  FOLD FUNCTION ***********************************)
+
+  (* val fold : (key -> 'a -> 'acc -> 'acc) -> 'a t -> 'acc -> 'acc *)
+
+  (**
+  @requires Rien
+  @ensures un fold sur le graph
+  @raises Rien
+  *)
+  val fold_node : (node -> 'a -> 'a) -> graph -> 'a -> 'a
+
+  (**
+  @requires Rien
+  @ensures un fold sur les successeurs du noeud
+  @raises Rien
+  *)
+  val fold_edge : (node -> 'a -> 'a) -> graph -> 'a -> 'a
 
   (**********************  MEM FUNCTION ***********************************)
 
@@ -102,8 +111,6 @@ module type S = sig
   @raises Rien
   *)
   val add_lonely_node : node -> graph
-
-  (*TODO REFAIRE EXCEPTION A PARTIR DE LA*)
 
   (**
   @brief Fonction qui prend 2 noeud existant et qui lie le noeud A 
@@ -148,6 +155,7 @@ module type S = sig
   @requires les 2 nodeuds 
   @ensures que l'arête 1 ------> 2 soit supprimer 
   @raises EmptyMap si les 2 noeuds n'existe pas
+  @warning si A ---> A , on supprime l'arête mais pas le noeud
   *)
   val remove_edge : node -> node -> graph -> graph
 
@@ -192,12 +200,6 @@ module Make (X : Map.OrderedType) = struct
   let empty = NodeMap.empty
   let is_empty g = NodeMap.is_empty g
 
-  (**********************  FOLD FUNCTION ***********************************)
-
-  let fold_node (f : node -> 'a -> 'a) (g : graph) (acc : 'a) =
-    NodeMap.fold (fun currNode _ acc -> f currNode acc) g acc
-  ;;
-
   (**********************  SUCCS FUNCTION ***********************************)
 
   let succs (n : node) (g : graph) =
@@ -205,6 +207,40 @@ module Make (X : Map.OrderedType) = struct
       on retourne la clé , sinon on retourne rien*)
     try NodeMap.find n g with
     | Not_found -> failwith "succs : le noeud n'apppartient pas au graph"
+  ;;
+
+  (**********************  FOLD FUNCTION ***********************************)
+
+  (*
+     le fold n'est fait que sur les clé
+  *)
+  let fold_node (f : node -> 'a -> 'a) (g : graph) (acc : 'a) =
+    NodeMap.fold (fun currNode _ acc -> f currNode acc) g acc
+  ;;
+
+  (*
+     Lors du fold, pour chaque clé, on va faire un fold sur les successeurs
+     a --> b 
+     b --> c
+     c --> a 
+     a --> c
+     { a : {{b: 1} ; {c: 1}}
+       b : {c: 1}
+       c : {a: 1}
+     }
+     l'un des élement qui recevra la fonction f sera b et c du noeud a par ex
+  *)
+  let fold_edge (f : node -> 'a -> 'a) (g : graph) (acc : 'a) =
+    NodeMap.fold (fun noeud succs acc ->
+      (*on itère dans les clés du dico*)
+      (* lit : a succs ; b succs ; c succs *)
+      NodeMap.fold
+        (* lit : b 1 ; c 1*)
+          (fun n ponderation acc2 ->
+          (* on itere parmi les successeurs de cette clé *)
+          f n acc)
+        g
+        acc)
   ;;
 
   (********************** MEM FUNCTION ***********************************)
@@ -238,7 +274,7 @@ module Make (X : Map.OrderedType) = struct
       (*the previous binding will be overwritten *)
       NodeMap.add n1 updated_succs g)
     else
-      raise EmptyMap
+      failwith "add_edge : les 2 noeuds n'existent pas"
   ;;
 
   let add_default_edge (n1 : node) (n2 : node) (g : graph) = add_edge n1 1 n2 g
@@ -250,13 +286,17 @@ module Make (X : Map.OrderedType) = struct
     (g : graph)
     =
     (*si le noeud de base existe*)
-    if mem_node base_node g then (
-      (*on crée le nouveau noeud*)
-      let newGraph = add_lonely_node node_to_add g in
-      (* on lie les 2 noeud *)
-      add_edge base_node ponderation node_to_add newGraph)
+    if mem_node base_node g then
+      (*on vérifie qu'on ne crée pas de boucle *)
+      if not (base_node = node_to_add) then (
+        (*on crée le nouveau noeud*)
+        let newGraph = add_lonely_node node_to_add g in
+        (* on lie les 2 noeud *)
+        add_edge base_node ponderation node_to_add newGraph)
+      else
+        g
     else
-      raise EmptyMap
+      failwith "add_node : le noeud de base n'existe pas"
   ;;
 
   let add_default_node (n1 : node) (n2 : node) (g : graph) = add_node n1 1 n2 g
