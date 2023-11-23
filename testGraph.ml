@@ -3,12 +3,12 @@ module PGraph = Graph.Make (Char)
 (*
    fonction a tester :
    - is_empty : DONE
-   - mem_node : DONE
-   - mem_edge : DONE
-   - mem_exist_as_succesor : DONE
    - succs : DONE
    - fold_node : DONE
    - fold_succs : DONE
+   - mem_node : DONE
+   - mem_edge : DONE
+   - mem_exist_as_succesor : DONE
    - add_lonely_node : DONE
    - add_edge : DONE
    - add_node : DONE
@@ -93,8 +93,6 @@ let _ =
   else
     Printf.printf "test_fold_succs (graph pas avec 4 arc) : erreur\n"
 ;;
-
-(******************** fold_edge TEST ************************)
 
 (******************** mem_node TEST ************************)
 
