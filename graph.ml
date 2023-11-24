@@ -71,7 +71,10 @@ module type S = sig
 
   (**********************  FOLD FUNCTION ***********************************)
 
-  (* val fold : (key -> 'a -> 'acc -> 'acc) -> 'a t -> 'acc -> 'acc *)
+  (*
+     Map.fold
+     val fold : (key -> 'a -> 'acc -> 'acc) -> 'a t -> 'acc -> 'acc
+  *)
 
   (**
   @requires Rien
@@ -109,6 +112,7 @@ module type S = sig
   @raises rien 
   *)
   val mem_exist_as_successor : node -> graph -> bool
+
   (**********************  ADDING FUNCTION ***********************************)
 
   (**
@@ -180,6 +184,36 @@ module type S = sig
   les noeuds du graph 
   *)
   val remove_node : node -> graph -> graph
+
+  (**********************  COUNTING FUNCTION ********************************)
+
+  (**
+  @requires un noeud existant dans graph
+  @ensures le nombre d'arc
+  @raises le noeud n'est pas dans le graph
+
+  a ----> b 
+  c ----> b 
+
+  number_of_incoming_edge 'b' graph ===> 2 
+
+  *)
+  val number_of_incoming_edge : node -> graph -> int
+
+  (**
+  @requires un noeud existant dans graph
+  @ensures le nombre d'arc
+  @raises le noeud n'est pas dans le graph
+
+  a ----> b 
+  a-----> c
+  a-----> a
+  c ----> b 
+
+  number_of_outgoing_edge 'a' graph ===> 3
+
+  *)
+  val number_of_outgoing_edge : node -> graph -> int
 
   (**********************  TRAVERSAL FUNCTION ********************************)
 
@@ -346,4 +380,23 @@ module Make (X : Map.OrderedType) = struct
     in
     NodeMap.remove n graph_without_successor_to_n
   ;;
+
+  (********************  COUNTING FUNCTION *********************************)
+
+  (* nombre d'arc qui quitte le noeud en paramètre, soit son nombre de successeur *)
+  let number_of_outgoing_edge (n : node) (g : graph) =
+    fold_node
+      (fun node acc ->
+        if node = n then
+          acc + 1
+        else
+          acc)
+      g
+      0
+  ;;
+
+  (* NOT TESTED *)
+
+  (* nombre de noeud qui pointe vers le noeud en paramètre*)
+  let number_of_incoming_edge (n : node) (g : graph) = 4
 end

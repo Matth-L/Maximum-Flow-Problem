@@ -309,9 +309,9 @@ let _ =
   in
   let graph_two_lonely_node = PGraph.remove_edge 'a' 'b' graph_with_a_b in
   if PGraph.mem_edge 'a' 'b' graph_two_lonely_node then
-    Printf.printf "test remove_edge (A et B ne sont pas isolé) : erreur\n"
+    Printf.printf "test_remove_edge (A et B ne sont pas isolé) : erreur\n"
   else
-    Printf.printf "test remove_edge (A et B sont isolé) : OK\n"
+    Printf.printf "test_remove_edge (A et B sont isolé) : OK\n"
 ;;
 
 (*test si malgré une boucle A n'a pas été supprimé *)
@@ -322,10 +322,10 @@ let _ =
   let g = PGraph.remove_edge 'a' 'a' graph_with_a_a in
   if PGraph.mem_node 'a' g then
     Printf.printf
-      "test remove_edge (A existe toujours en enlevant sa boucle) : OK\n"
+      "test_remove_edge (A existe toujours en enlevant sa boucle) : OK\n"
   else
     Printf.printf
-      "test remove_edge (A n'existe plus en enlevant sa boucle) : erreur\n"
+      "test_remove_edge (A n'existe plus en enlevant sa boucle) : erreur\n"
 ;;
 
 (******************** remove_node TEST ************************)
@@ -346,9 +346,9 @@ let _ =
   let step_4 = PGraph.add_edge 'c' 1 'b' step_3 in
   let step_5 = PGraph.remove_node 'a' step_4 in
   if PGraph.mem_node 'a' step_5 then
-    Printf.printf "test remove_node (A existe toujours) : erreur\n"
+    Printf.printf "test_remove_node (A existe toujours) : erreur\n"
   else
-    Printf.printf "test remove_node (A n'existe plus) : OK\n"
+    Printf.printf "test_remove_node (A n'existe plus) : OK\n"
 ;;
 
 (* test si A n'est plus dans les autres *)
@@ -367,8 +367,39 @@ let _ =
   let result = PGraph.mem_exist_as_successor 'a' removedA in
   if result then
     Printf.printf
-      "test remove_node (A a été trouvé comme successeur) : erreur\n"
+      "test_remove_node (A a été trouvé comme successeur) : erreur\n"
   else
     Printf.printf
-      "test remove_node (A n'a pas été trouvé comme successeur) : OK\n"
+      "test_remove_node (A n'a pas été trouvé comme successeur) : OK\n"
+;;
+
+(******************** number_of_outgoing_edge TEST ************************)
+
+(*fonctionne pas ??? *)
+(*
+   a ---> b ----> c
+   ^              ^
+   |--------------|
+
+   a à 2 successeur
+*)
+let _ =
+  let graph_with_a = PGraph.add_lonely_node 'a' PGraph.empty in
+  (* a ---> b *)
+  let graph_with_a_b = PGraph.add_node 'a' 1 'b' graph_with_a in
+  (* b ---> c *)
+  let graph_with_a_b_c = PGraph.add_node 'b' 1 'c' graph_with_a_b in
+  (* c ---> a *)
+  let graph_with_a_b_c_a = PGraph.add_edge 'c' 1 'a' graph_with_a_b_c in
+  (*a ---> c *)
+  let final = PGraph.add_edge 'a' 1 'c' graph_with_a_b_c_a in
+  let number_of_edge_outgoing = PGraph.number_of_outgoing_edge 'a' final in
+  if number_of_edge_outgoing = 2 then
+    Printf.printf
+      "test number_of_outgoing_edge (A à le bon nombre d'arc sortant) : OK\n"
+  else
+    Printf.printf
+      "test number_of_outgoing_edge (A n'a pas le bon nombre d'arc sortant) : \
+       erreur\n"
+      ""
 ;;
