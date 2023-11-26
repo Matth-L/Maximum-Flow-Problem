@@ -1,21 +1,5 @@
 module PGraph = Graph.Make (Char)
 
-(*
-   fonction a tester :
-   - is_empty : DONE
-   - succs : DONE
-   - fold_node : DONE
-   - fold_succs : DONE
-   - mem_node : DONE
-   - mem_edge : DONE
-   - mem_exist_as_succesor : DONE
-   - add_lonely_node : DONE
-   - add_edge : DONE
-   - add_node : DONE
-   - remove_edge : DONE
-   - remove_node : DONE
-*)
-
 (* Beaucoup de test pourrait être condensé en 1 seul mais pour rendre l'impression des test plus explicite je les ai séparé*)
 
 (******************** is_empty TEST ************************)
@@ -26,7 +10,6 @@ let _ =
     Printf.printf "test_is_empty (graph vide -> true): OK\n"
   else
     Printf.printf "test_is_empty (graph non vide): erreur \n"
-;;
 
 (*test de vacuité avec un graph non vide*)
 let _ =
@@ -35,7 +18,6 @@ let _ =
     Printf.printf "test_is_empty (graph vide) : erreur\n"
   else
     Printf.printf "test_is_empty (graph non vide -> false) : OK\n"
-;;
 
 (******************** fold_node TEST ************************)
 
@@ -52,7 +34,6 @@ let _ =
     Printf.printf "test_fold_node (graph vide -> 0 noeud) : OK\n"
   else
     Printf.printf "test_fold_node : erreur\n"
-;;
 
 (* test avec 3 noeud
    a ---> b
@@ -70,7 +51,6 @@ let _ =
     Printf.printf "test_fold_node (graph avec 3 noeuds) : OK\n"
   else
     Printf.printf "test_fold_node : erreur\n"
-;;
 
 (******************** fold_succs TEST ************************)
 
@@ -92,7 +72,6 @@ let _ =
     Printf.printf "test_fold_succs (graph avec 4 arc) : OK\n"
   else
     Printf.printf "test_fold_succs (graph pas avec 4 arc) : erreur\n"
-;;
 
 (******************** mem_node TEST ************************)
 
@@ -105,7 +84,6 @@ let _ =
   else
     Printf.printf
       "test_mem_node (le noeud 'x' n'appartient pas au graph): erreur\n"
-;;
 
 (*le noeud n'appartient pas au graph*)
 let _ =
@@ -115,7 +93,6 @@ let _ =
     Printf.printf "test_mem_node (le noeud appartient au graph): erreur\n"
   else
     Printf.printf "test_mem_node (le noeud 'V' n'appartient pas au graph): OK\n"
-;;
 
 (******************** mem_edge TEST ************************)
 (* la fonction retourne une exception si n1 n'est pas dans le graph
@@ -130,7 +107,6 @@ let _ =
     Printf.printf "test_mem_edge ( a ----> b existe) : OK\n"
   else
     Printf.printf "test_mem_edge ( a ----> b n'existe pas ) : erreur\n"
-;;
 
 (*test si l'un des deux noeuds n'existe pas *)
 let _ =
@@ -140,7 +116,6 @@ let _ =
     Printf.printf "test_mem_edge (l'un des 2 noeuds n'exisent pas): erreur\n"
   else
     Printf.printf "test_mem_edge (l'un des 2 noeuds n'exisent pas): OK\n"
-;;
 
 (*test si le premier noeud n'existe pas (doit throw une exception)*)
 let _ =
@@ -149,9 +124,8 @@ let _ =
   try
     let _ = PGraph.mem_edge 'd' 'b' graph_with_2_node in
     Printf.printf "test_mem_edge (le premier noeud n'existe pas) : erreur\n"
-  with
-  | _ -> Printf.printf "test_mem_edge (le premier noeud n'existe pas): OK\n"
-;;
+  with _ ->
+    Printf.printf "test_mem_edge (le premier noeud n'existe pas): OK\n"
 
 (******************** mem_exist_as_successor TEST ************************)
 
@@ -175,7 +149,6 @@ let _ =
     Printf.printf
       "test_mem_exist_as_successor (A n'est pas un successeur d'un noeud) : \
        erreur\n"
-;;
 
 (* test si le noeud b n'est pas un successeur*)
 (*
@@ -196,7 +169,6 @@ let _ =
   else
     Printf.printf
       "test_mem_exist_as_successor (B n'est pas le successeur d'un noeud) : OK\n"
-;;
 
 (******************** succs TEST ************************)
 
@@ -218,7 +190,6 @@ let _ =
     Printf.printf "test_succs (le successeur de 1 est 2) : OK\n"
   else
     Printf.printf "test_succs (le successeur de 1 est 2) : erreur\n"
-;;
 
 (******************** add_lonely_node TEST ************************)
 
@@ -229,7 +200,6 @@ let _ =
     Printf.printf "test_add_lonely_node (ajout d'un noeud seul) : OK\n"
   else
     Printf.printf "test_add_lonely_node (ajout d'un noeud) : erreur\n"
-;;
 
 (* test que ce noeud n'a bien pas de successeur*)
 let _ =
@@ -241,7 +211,6 @@ let _ =
   else
     Printf.printf
       "test_add_lonely_node (le noeud n'a pas de successeur) : erreur\n"
-;;
 
 (******************** add_edge TEST ************************)
 
@@ -257,7 +226,6 @@ let _ =
     Printf.printf "test_edge (A ---> B existe et A <---- B n'existe pas) : OK\n"
   else
     Printf.printf "test_edge (A ---> B n'existe pas) : erreur\n"
-;;
 
 (******************** add_node TEST ************************)
 
@@ -274,7 +242,6 @@ let _ =
     Printf.printf "test_add_node (le nouveau noeud B existe) : OK\n"
   else
     Printf.printf "test_add_node (le nouveau noeud B n'existe pas ) : erreur\n"
-;;
 
 (* test si l'arête a bien été crée*)
 let _ =
@@ -285,7 +252,6 @@ let _ =
     Printf.printf "test_add_node (A ---> B existe) : OK\n"
   else
     Printf.printf "test_add_node (A ---> B n'existe pas) : erreur\n"
-;;
 
 (* test qui vérifie que add_node 'a' 'a' ne crée pas une boucle*)
 let _ =
@@ -296,7 +262,6 @@ let _ =
     Printf.printf "test_add_node (une boucle est crée de A ---> A ) : erreur\n"
   else
     Printf.printf "test_add_node (A ---> A n'existe pas) : OK\n"
-;;
 
 (******************** remove_edge TEST ************************)
 
@@ -312,7 +277,6 @@ let _ =
     Printf.printf "test_remove_edge (A et B ne sont pas isolé) : erreur\n"
   else
     Printf.printf "test_remove_edge (A et B sont isolé) : OK\n"
-;;
 
 (*test si malgré une boucle A n'a pas été supprimé *)
 let _ =
@@ -326,7 +290,6 @@ let _ =
   else
     Printf.printf
       "test_remove_edge (A n'existe plus en enlevant sa boucle) : erreur\n"
-;;
 
 (******************** remove_node TEST ************************)
 
@@ -349,7 +312,6 @@ let _ =
     Printf.printf "test_remove_node (A existe toujours) : erreur\n"
   else
     Printf.printf "test_remove_node (A n'existe plus) : OK\n"
-;;
 
 (* test si A n'est plus dans les autres *)
 (*
@@ -371,35 +333,108 @@ let _ =
   else
     Printf.printf
       "test_remove_node (A n'a pas été trouvé comme successeur) : OK\n"
-;;
+
+(******************** number_of_incoming_edge TEST ************************)
+
+(**
+                  ----
+                  |  |
+                  v  |
+   a ---> b ----> c --
+   |              ^
+   |--------------|
+
+   c à 2 noeud qui pointe vers lui
+
+   { a  : {b : 1} {c : 1}
+     b  : {c : 1}
+     c  : {c : 1}
+   }
+*)
+let _ =
+  let step_1 = PGraph.add_lonely_node 'a' PGraph.empty in
+  (* a ---> b *)
+  let step_2 = PGraph.add_node 'a' 1 'b' step_1 in
+  (* b ---> c *)
+  let step_3 = PGraph.add_node 'b' 1 'c' step_2 in
+  (*a ---> c *)
+  let step_4 = PGraph.add_edge 'a' 1 'c' step_3 in
+  let final = PGraph.add_edge 'c' 1 'c' step_4 in
+  let incoming_edge = PGraph.number_of_incoming_edge 'c' final in
+  if incoming_edge = 3 then
+    Printf.printf
+      "test number_of_incoming_edge (C à le bon nombre d'arc entrant) : OK\n"
+  else
+    Printf.printf
+      "test number_of_incoming_edge (C à le bon nombre d'arc entrant) : erreur\n"
 
 (******************** number_of_outgoing_edge TEST ************************)
 
-(*fonctionne pas ??? *)
-(*
-   a ---> b ----> c
-   ^              ^
+(**
+                  ----
+                  |  |
+                  v  |
+   a ---> b ----> c --
+   |              ^
    |--------------|
 
-   a à 2 successeur
+
+   { a  : {b : 1} {c : 1}
+     b  : {c : 1}
+     c
+   }
+
+   a à 2 arête qui le quitte
 *)
 let _ =
-  let graph_with_a = PGraph.add_lonely_node 'a' PGraph.empty in
+  let step_1 = PGraph.add_lonely_node 'a' PGraph.empty in
   (* a ---> b *)
-  let graph_with_a_b = PGraph.add_node 'a' 1 'b' graph_with_a in
+  let step_2 = PGraph.add_node 'a' 1 'b' step_1 in
   (* b ---> c *)
-  let graph_with_a_b_c = PGraph.add_node 'b' 1 'c' graph_with_a_b in
-  (* c ---> a *)
-  let graph_with_a_b_c_a = PGraph.add_edge 'c' 1 'a' graph_with_a_b_c in
+  let step_3 = PGraph.add_node 'b' 1 'c' step_2 in
   (*a ---> c *)
-  let final = PGraph.add_edge 'a' 1 'c' graph_with_a_b_c_a in
-  let number_of_edge_outgoing = PGraph.number_of_outgoing_edge 'a' final in
-  if number_of_edge_outgoing = 2 then
+  let step_4 = PGraph.add_edge 'a' 1 'c' step_3 in
+  let final = PGraph.add_edge 'c' 1 'c' step_4 in
+  let outgoing_edge = PGraph.number_of_outgoing_edge 'a' final in
+  if outgoing_edge = 2 then
     Printf.printf
       "test number_of_outgoing_edge (A à le bon nombre d'arc sortant) : OK\n"
   else
     Printf.printf
       "test number_of_outgoing_edge (A n'a pas le bon nombre d'arc sortant) : \
        erreur\n"
-      ""
-;;
+
+(******************** add_paths TEST ************************)
+(*
+  semble fonctionner 
+             |-----> f
+             |
+     a ----> b ----> c
+     |               ^
+     |-----> d       |
+     |               |
+     |-----> e ----> g
+     test
+*)
+
+let _ =
+  (* set de Test *)
+  let step_1 = PGraph.add_lonely_node 'a' PGraph.empty in
+  let step_2 = PGraph.add_node 'a' 1 'b' step_1 in
+  let step_3 = PGraph.add_node 'a' 1 'd' step_2 in
+  let step_4 = PGraph.add_node 'a' 1 'e' step_3 in
+  let step_5 = PGraph.add_node 'b' 1 'c' step_4 in
+  let step_6 = PGraph.add_node 'e' 1 'g' step_5 in
+  let step_7 = PGraph.add_node 'b' 1 'f' step_6 in
+  let finalGraph = PGraph.add_edge 'g' 1 'c' step_7 in
+
+  (*test bfs*)
+  let normallySameSet = PGraph.bfs 'a' 'c' finalGraph in
+
+  (*printing the whole set *)
+  Printf.printf "printing the whole set : \n";
+  PGraph.SetOfPath.iter
+    (fun path ->
+      List.iter (fun (node, ponderation) -> Printf.printf "%c" node) path;
+      Printf.printf "\n")
+    normallySameSet

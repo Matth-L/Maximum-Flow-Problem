@@ -1,41 +1,10 @@
 # https://ocaml.org/p/ocamlformat/latest/doc/manpage_ocamlformat.html
 
-profile = janestreet 
 margin = 80 
-nested-match=align
-# For not so pretty drawing
-wrap-comments = false 
-
-# Linux line ending
 line-endings = lf
-
+wrap-comments=false
+profile = conventional
 break-cases = toplevel 
 if-then-else = vertical
-
-#  Add parentheses around matching constructs that fit on a single
-#  line.
 disambiguate-non-breaking-match=true 
-
-
-#  Uses parentheses around if-then-else branches that spread across
-#  multiple lines. .
-parens-ite = true 
-
-#  Parens tuple expressions. always always uses parentheses around
-#  tuples. multi-line-only mode will try to skip parens for
-#  single-line tuples.  
-parens-tuple=always
-
-
-# Parens tuple patterns. multi-line-only mode will try to skip
-# parens for single-line tuple patterns. always always uses
-# parentheses around tuples patterns. The default value is
-# multi-line-only.
-parens-tuple-patterns=always
-
-#  Style of a pattern-matching nested in the last case of another
-#  pattern-matching. wrap wraps the nested pattern-matching with
-#  parentheses and adds indentation. align vertically aligns the
-#  nested pattern-matching under the encompassing pattern-matching.
-#  The default value is wrap.
-nested-match=align
+doc-comments=before

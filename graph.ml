@@ -44,6 +44,9 @@ exception EmptyMap
 module type S = sig
   module NodeMap : Map.S
 
+  (* pour l'ensemble de la liste des chemins*)
+  module SetOfPath : Set.S
+
   type graph
   type node
 
@@ -179,7 +182,7 @@ module type S = sig
   (**
   @requires le noeud à récupérer ainsi que le graph 
   @ensures que le noeud soit bien retirer du graph ainsi que les noeuds qui pointent vers lui
-  @raises Rien 
+  @raises Riencherche  
   @brief, il faut utiliser un fold , il faut fold le remove edge sur tous
   les noeuds du graph 
   *)
@@ -215,10 +218,28 @@ module type S = sig
   *)
   val number_of_outgoing_edge : node -> graph -> int
 
-  (**********************  TRAVERSAL FUNCTION ********************************)
+  (*NON TESTER*)
 
-  (* prend un noeud et return la liste de toutes les itérations du bfs *)
-  val bfs : node -> graph -> node list list
+  (**
+  @requires un graph
+  @ensures un ensemble de chemin correspondant à tous les chemins possible dans le graphe au rang suivant 
+  @raises Rien
+  *)
+  val add_paths_to_set : SetOfPath.t -> graph -> SetOfPath.t
+
+  (**
+  @requires un graph
+  @ensures un ensemble de chemin correspondant à tous les chemins possible dans le graphe
+  @raises Rien
+  *)
+  val add_paths_to_set_while_possible : SetOfPath.t -> graph -> SetOfPath.t
+
+  (**
+  @requires un noeud de départ, un noeud d'arrivé et un graph
+  @ensures un ensemble de chemin correspondant à tous les chemins possible dans le graphe
+  @raises Rien
+  *)
+  val bfs : node -> node -> graph -> SetOfPath.t
 end
 
 (************************************************************************)
@@ -245,9 +266,8 @@ module Make (X : Map.OrderedType) = struct
   let succs (n : node) (g : graph) =
     (*si le noeud appartient au graph,
       on retourne la clé , sinon on retourne rien*)
-    try NodeMap.find n g with
-    | Not_found -> failwith "succs : le noeud n'apppartient pas au graph"
-  ;;
+    try NodeMap.find n g
+    with Not_found -> failwith "succs : le noeud n'apppartient pas au graph"
 
   (**********************  FOLD FUNCTION ***********************************)
 
@@ -256,7 +276,6 @@ module Make (X : Map.OrderedType) = struct
   *)
   let fold_node (f : node -> 'a -> 'a) (g : graph) (acc : 'a) =
     NodeMap.fold (fun currNode _ acc -> f currNode acc) g acc
-  ;;
 
   (*
      Lors du fold, pour chaque clé, on va faire un fold sur les successeurs
@@ -264,7 +283,10 @@ module Make (X : Map.OrderedType) = struct
      b --> c
      c --> a 
      a --> c
-     { a : {{b: 1} ; {c: 1}}
+     { a : {
+            b: 1 ; 
+            c: 1
+            }
        b : {c: 1}
        c : {a: 1}
      }
@@ -275,11 +297,26 @@ module Make (X : Map.OrderedType) = struct
       (fun noeud successeur acc1 ->
         NodeMap.fold
           (fun noeudSuccs ponderation acc2 -> f noeudSuccs ponderation acc2)
-          successeur
+          successeur acc1)
+      g acc
+
+  (**
+  @requires un noeud qui existe au graph
+  @ensures, un fold fais sur tous les successeurs d'1 seul noeud
+  @raises Rien 
+  TODO TEST    
+  *)
+  let fold_succs_of_1node (n : node) (f : node -> int -> 'a -> 'a) (g : graph)
+      (acc : 'a) =
+    NodeMap.fold
+      (fun noeud successeur acc1 ->
+        if noeud = n then
+          NodeMap.fold
+            (fun noeudSuccs ponderation acc2 -> f noeudSuccs ponderation acc2)
+            successeur acc1
+        else
           acc1)
-      g
-      acc
-  ;;
+      g acc
 
   (********************** MEM FUNCTION ***********************************)
 
@@ -290,14 +327,12 @@ module Make (X : Map.OrderedType) = struct
     if not (mem_node n1 g) then
       failwith "mem_edge : le noeud n1 n'appartient pas au graph"
       (*sinon on cherche parmi ses successeurs si n2 existe *)
-    else (
+    else
       let succs_of_n1 = succs n1 g in
-      NodeMap.mem n2 succs_of_n1)
-  ;;
+      NodeMap.mem n2 succs_of_n1
 
   let mem_exist_as_successor (n : node) (g : graph) =
     NodeMap.fold (fun noeud valeur acc -> acc || NodeMap.mem n valeur) g false
-  ;;
 
   (**********************  ADDING FUNCTION ***********************************)
 
@@ -308,63 +343,54 @@ module Make (X : Map.OrderedType) = struct
       (*sinon on l'ajoute*)
     else
       NodeMap.add n NodeMap.empty g
-  ;;
 
   (* fais : n1 ----- (pond) ----> n2 ; si n1 et n2 existe dans le graph *)
   let add_edge (n1 : node) (pond : int) (n2 : node) (g : graph) =
     (*si les 2 noeuds existent dans le graph*)
-    if mem_node n1 g && mem_node n2 g then (
+    if mem_node n1 g && mem_node n2 g then
       (*on récupère les successeurs de n1 *)
       let successor_of_n1 = succs n1 g in
       (*on ajoute n2 à la liste des successeurs de n1*)
       let updated_succs = NodeMap.add n2 pond successor_of_n1 in
       (* on met à jour la clé *)
-      NodeMap.add n1 updated_succs g)
+      NodeMap.add n1 updated_succs g
     else
       failwith "add_edge : les 2 noeuds n'existent pas"
-  ;;
 
   let add_default_edge (n1 : node) (n2 : node) (g : graph) = add_edge n1 1 n2 g
 
-  let add_node
-    (base_node : node)
-    (ponderation : int)
-    (node_to_add : node)
-    (g : graph)
-    =
+  let add_node (base_node : node) (ponderation : int) (node_to_add : node)
+      (g : graph) =
     (*si le noeud de base existe*)
     if mem_node base_node g then
       (*on vérifie qu'on ne crée pas de boucle *)
-      if not (base_node = node_to_add) then (
+      if not (base_node = node_to_add) then
         (*on crée le nouveau noeud*)
         let newGraph = add_lonely_node node_to_add g in
         (* on lie les 2 noeud *)
-        add_edge base_node ponderation node_to_add newGraph)
+        add_edge base_node ponderation node_to_add newGraph
       else
         g
     else
       failwith "add_node : le noeud de base n'existe pas"
-  ;;
 
   let add_default_node (n1 : node) (n2 : node) (g : graph) = add_node n1 1 n2 g
 
   (**********************  REMOVE FUNCTION ***********************************)
 
   let remove_edge (n1 : node) (n2 : node) (g : graph) =
-    if mem_node n1 g && mem_node n2 g then (
+    if mem_node n1 g && mem_node n2 g then
       (*on supprime l'arête n1 -----> n2 *)
       let successor_of_n1 = succs n1 g in
       let updated_successor_of_n1 = NodeMap.remove n2 successor_of_n1 in
-      NodeMap.add n1 updated_successor_of_n1 g)
+      NodeMap.add n1 updated_successor_of_n1 g
     else
       failwith "remove_edge : les 2 noeuds n'existent pas"
-  ;;
 
   let remove_edges (n1 : node) (n2 : node) (g : graph) =
     let graph_unlink_n1_to_n2 = remove_edge n1 n2 g in
     let graph_unlink_n2_to_n1 = remove_edge n2 n1 graph_unlink_n1_to_n2 in
     graph_unlink_n2_to_n1
-  ;;
 
   let remove_node (n : node) (g : graph) =
     let graph_without_successor_to_n =
@@ -375,28 +401,127 @@ module Make (X : Map.OrderedType) = struct
       NodeMap.fold
         (fun noeud valeur acc ->
           NodeMap.add noeud (NodeMap.remove n valeur) acc)
-        g
-        NodeMap.empty
+        g NodeMap.empty
     in
     NodeMap.remove n graph_without_successor_to_n
-  ;;
 
   (********************  COUNTING FUNCTION *********************************)
 
-  (* nombre d'arc qui quitte le noeud en paramètre, soit son nombre de successeur *)
-  let number_of_outgoing_edge (n : node) (g : graph) =
-    fold_node
-      (fun node acc ->
+  (* nombre d'arc qui pointe vers le noeud*)
+  let number_of_incoming_edge (n : node) (g : graph) =
+    fold_succs
+      (fun node ponderation acc ->
         if node = n then
           acc + 1
         else
           acc)
-      g
-      0
-  ;;
+      g 0
 
-  (* NOT TESTED *)
+  (* nombre d'arc qui quitte le noeud, c'est donc le nombre de successeurs*)
+  let number_of_outgoing_edge (n : node) (g : graph) =
+    let map_of_succs = succs n g in
+    NodeMap.cardinal map_of_succs
 
-  (* nombre de noeud qui pointe vers le noeud en paramètre*)
-  let number_of_incoming_edge (n : node) (g : graph) = 4
+  (***********************************************************)
+  (********************  BFS *********************************)
+  (***********************************************************)
+
+  (**
+    BUT
+              |-----> f
+              |
+      a ----> b ----> c
+      |               ^
+      |-----> d       |
+      |               |
+      |-----> e ----> g
+
+      1)
+
+      [
+
+      [(b,1)]
+      [(d,1)]
+      [(e,1)]
+
+      ]
+      2)
+      focus sur [(b,1)]
+      [b,1] =>
+
+      [
+
+      [(c,1);(b,1)]
+      [(f,1);(b,1)]
+
+      ]
+
+      puis on remplace (b,1) par le nouveau chemin
+      [
+
+      [(c,1);(b,1)]
+      [(f,1);(b,1)]
+      [(d,1)]
+      [(e,1)]
+
+      ]
+      **)
+
+  (********************  Ensemble chemin *********************************)
+
+  (*
+     pour stocker les chemins, on va utiliser des ensembles,
+     cela permet de ne pas se faire avoir par l'ordre et de fold
+     sans prendre en compte du sens dans lequel on lit
+  *)
+  module SetOfPath = Set.Make (struct
+    type t = (node * int) list
+
+    let compare = compare
+  end)
+
+  (* fonction qui ajoute tous les chemins dans un ensemble de chemin *)
+  let add_paths_to_set ensInit (g : graph) =
+    (* on fold dans l'ensemble des chemins*)
+    SetOfPath.fold
+      (fun listOfPath acc ->
+        (* on parcours chaque liste correspondant à un chemin*)
+        (* le dernier élement est la tête*)
+        let n, pond = List.hd listOfPath in
+        (*on récupère ses successeurs*)
+        let succs_of_n = succs n g in
+        (*on fold sur tous les successeurs pour les ajouter à l'ensemble des chemins*)
+        NodeMap.fold
+          (* on ajoute le nouveau chemin à l'ensemble des chemin*)
+            (fun nodeSuccessor ponderationSuccesor acc ->
+            let newPath = (nodeSuccessor, ponderationSuccesor) :: listOfPath in
+            SetOfPath.add newPath acc)
+          succs_of_n acc)
+      ensInit ensInit
+
+  (* fonction qui tant que les élément dans le SetOfPath ont des successerus, appel add_paths_to_set *)
+  let rec add_paths_to_set_while_possible ensInit (g : graph) =
+    (* on ajoute les chemins tant que c'est possible*)
+    let newSetOfPath = add_paths_to_set ensInit g in
+    (* si le nouveau set est différent du set de base, on rappel la fonction*)
+    if not (SetOfPath.equal ensInit newSetOfPath) then
+      add_paths_to_set_while_possible newSetOfPath g
+    else
+      newSetOfPath
+
+  (* maintenant, il suffit de prendre un noeud de départ et d'appliquer la fonction*)
+  let bfs (start : node) (goal : node) (g : graph) =
+    (* on transforme le noeud en ensemble*)
+    let startingSet = SetOfPath.singleton [ (start, 0) ] in
+
+    (* on applique la fonction, on a donc tous les chemins possible du graph*)
+    let allSet = add_paths_to_set_while_possible startingSet g in
+
+    (* il suffit de remove ceux qui ne commence pas par goal car le
+       plus récent est la tête de la liste *)
+    SetOfPath.filter
+      (fun listOfPath ->
+        let n, pond = List.hd listOfPath in
+        n = goal)
+      allSet
 end
