@@ -494,7 +494,13 @@ module Make (X : Map.OrderedType) = struct
         NodeMap.fold
           (* on ajoute le nouveau chemin à l'ensemble des chemin*)
             (fun nodeSuccessor ponderationSuccesor acc ->
-            let newPath = (nodeSuccessor, ponderationSuccesor) :: listOfPath in
+            (* on vérifie si le noeud est déja la , ça permet de ne pas tuer la pile en cas de cycle*)
+            let newPath =
+              if List.mem (nodeSuccessor, ponderationSuccesor) listOfPath then
+                listOfPath
+              else
+                (nodeSuccessor, ponderationSuccesor) :: listOfPath
+            in
             SetOfPath.add newPath acc)
           succs_of_n acc)
       ensInit ensInit

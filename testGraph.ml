@@ -408,13 +408,15 @@ let _ =
 (*
   semble fonctionner 
              |-----> f
-             |
+             |       |
+             |       v
      a ----> b ----> c
      |               ^
      |-----> d       |
      |               |
      |-----> e ----> g
-     test
+
+     graph test
 *)
 
 let _ =
@@ -426,10 +428,13 @@ let _ =
   let step_5 = PGraph.add_node 'b' 1 'c' step_4 in
   let step_6 = PGraph.add_node 'e' 1 'g' step_5 in
   let step_7 = PGraph.add_node 'b' 1 'f' step_6 in
-  let finalGraph = PGraph.add_edge 'g' 1 'c' step_7 in
+  let step_8 = PGraph.add_edge 'g' 1 'c' step_7 in
+  let step_9 = PGraph.add_edge 'f' 1 'c' step_8 in
+  (* test avec des cycles*)
+  let addedCycles = PGraph.add_edge 'b' 1 'b' step_9 in
 
   (*test bfs*)
-  let normallySameSet = PGraph.bfs 'a' 'c' finalGraph in
+  let normallySameSet = PGraph.bfs 'a' 'c' addedCycles in
 
   (*printing the whole set *)
   Printf.printf "printing the whole set : \n";
