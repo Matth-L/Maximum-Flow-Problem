@@ -494,9 +494,9 @@ module Make (X : Map.OrderedType) = struct
         NodeMap.fold
           (* on ajoute le nouveau chemin à l'ensemble des chemin*)
             (fun nodeSuccessor ponderationSuccesor acc ->
-            (* on vérifie si le noeud est déja la , ça permet de ne pas tuer la pile en cas de cycle*)
+            (* on vérifie si le noeud est déja la , ça permet de ne pas tuer la pile en cas de cycle, pour ça il suffit de regarde si la tête c'est le même ça prend moins de temps qu'un mem *)
             let newPath =
-              if List.mem (nodeSuccessor, ponderationSuccesor) listOfPath then
+              if List.hd listOfPath = (nodeSuccessor, ponderationSuccesor) then
                 listOfPath
               else
                 (nodeSuccessor, ponderationSuccesor) :: listOfPath
@@ -506,6 +506,7 @@ module Make (X : Map.OrderedType) = struct
       ensInit ensInit
 
   (* fonction qui tant que les élément dans le SetOfPath ont des successerus, appel add_paths_to_set *)
+  (* cela permet de remplir l'ensemble de tous les chemins possibles*)
   let rec add_paths_to_set_while_possible ensInit (g : graph) =
     (* on ajoute les chemins tant que c'est possible*)
     let newSetOfPath = add_paths_to_set ensInit g in
@@ -515,19 +516,40 @@ module Make (X : Map.OrderedType) = struct
     else
       newSetOfPath
 
-  (* maintenant, il suffit de prendre un noeud de départ et d'appliquer la fonction*)
-  let bfs (start : node) (goal : node) (g : graph) =
+  (* maintenant, il suffit de prendre un noeud de départ et d'appliquer la fonction pour avoir l'ensemmble avec tous les chemins allant de start vers goal *)
+  let allPath (start : node) (goal : node) (g : graph) =
     (* on transforme le noeud en ensemble*)
     let startingSet = SetOfPath.singleton [ (start, 0) ] in
 
     (* on applique la fonction, on a donc tous les chemins possible du graph*)
     let allSet = add_paths_to_set_while_possible startingSet g in
 
-    (* il suffit de remove ceux qui ne commence pas par goal car le
-       plus récent est la tête de la liste *)
+    (* il suffit de remove ceux qui ne commence pas par goal ,
+       le plus récent est la tête de la liste il suffit de regarder
+       la tête *)
     SetOfPath.filter
       (fun listOfPath ->
         let n, pond = List.hd listOfPath in
         n = goal)
       allSet
+
+  (* fonction qui trouve le plus petit chemin à partir d'un ensemble*)
+  let shortestOfSet (set : SetOfPath.t) =
+    (*fold sur l'ensemble*)
+    SetOfPath.fold
+      (fun listOfPath acc ->
+        if List.length listOfPath < acc then
+          List.length listOfPath
+        else
+          acc)
+      set
+      (List.length (SetOfPath.choose set))
+
+  (* fonction qui prend tous les chemins dans un ensemble, trouve le plus cours, et filtre afin de garder tout ceux égal au plus court*)
+  let allShortestPaths (start : node) (goal : node) (g : graph) =
+    let allPath = allPath start goal g in
+    let shortest = shortestOfSet allPath in
+    SetOfPath.filter
+      (fun listOfPath -> List.length listOfPath = shortest)
+      allPath
 end

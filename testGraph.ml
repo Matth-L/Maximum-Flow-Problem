@@ -410,12 +410,15 @@ let _ =
              |-----> f
              |       |
              |       v
-     a ----> b ----> c
-     |               ^
-     |-----> d       |
-     |               |
-     |-----> e ----> g
+     a ----> b ----> c <---
+     |               ^    |
+     |-----> d       |    |
+     |               |    |
+     |-----> e ----> g    |
+             |            |
+             |------------|
 
+     + boucle sur b
      graph test
 *)
 
@@ -430,11 +433,12 @@ let _ =
   let step_7 = PGraph.add_node 'b' 1 'f' step_6 in
   let step_8 = PGraph.add_edge 'g' 1 'c' step_7 in
   let step_9 = PGraph.add_edge 'f' 1 'c' step_8 in
+  let step_10 = PGraph.add_edge 'e' 1 'c' step_9 in
   (* test avec des cycles*)
-  let addedCycles = PGraph.add_edge 'b' 1 'b' step_9 in
+  let addedCycles = PGraph.add_edge 'b' 1 'b' step_10 in
 
   (*test bfs*)
-  let normallySameSet = PGraph.bfs 'a' 'c' addedCycles in
+  let normallySameSet = PGraph.allShortestPaths 'a' 'c' addedCycles in
 
   (*printing the whole set *)
   Printf.printf "printing the whole set : \n";
