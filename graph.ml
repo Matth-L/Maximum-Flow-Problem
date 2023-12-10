@@ -486,7 +486,7 @@ module Make (X : Map.OrderedType) = struct
     SetOfPath.fold
       (fun listOfPath acc ->
         (* on parcours chaque liste correspondant à un chemin*)
-        (* le dernier élement est la tête*)
+        (* le premier élement est la tête*)
         let n, pond = List.hd listOfPath in
         (*on récupère ses successeurs*)
         let succs_of_n = succs n g in
@@ -517,7 +517,7 @@ module Make (X : Map.OrderedType) = struct
       newSetOfPath
 
   (* maintenant, il suffit de prendre un noeud de départ et d'appliquer la fonction pour avoir l'ensemmble avec tous les chemins allant de start vers goal *)
-  let allPath (start : node) (goal : node) (g : graph) =
+  let all_path (start : node) (goal : node) (g : graph) =
     (* on transforme le noeud en ensemble*)
     let startingSet = SetOfPath.singleton [ (start, 0) ] in
 
@@ -538,18 +538,69 @@ module Make (X : Map.OrderedType) = struct
     (*fold sur l'ensemble*)
     SetOfPath.fold
       (fun listOfPath acc ->
+        (* on regarde s'il y a plus court*)
         if List.length listOfPath < acc then
           List.length listOfPath
         else
           acc)
       set
+      (* on commence en prenant la taille du premier set*)
       (List.length (SetOfPath.choose set))
 
   (* fonction qui prend tous les chemins dans un ensemble, trouve le plus cours, et filtre afin de garder tout ceux égal au plus court*)
   let allShortestPaths (start : node) (goal : node) (g : graph) =
-    let allPath = allPath start goal g in
+    let allPath = all_path start goal g in
     let shortest = shortestOfSet allPath in
     SetOfPath.filter
       (fun listOfPath -> List.length listOfPath = shortest)
       allPath
+
+  (*phase 2*)
+
+  (*RIEN A ETE TESTER*)
+
+  (* V0 :  naive *)
+  (* but : la fonction allPath nous donne un ensemble de chemin ou la pondération est marqué
+     pour chaque chemin, on va donc prendre cette ensemble, transformé chaque liste d'ensemble en couple
+     càd que si l'ensemble était
+     couteux car fold sur chaque élement
+     {
+      [chemin A]
+      [chemin B]
+      [chemin C]
+      [chemin D]
+     }
+     =>
+     {
+      (sum_ponderation_A , [chemin A])
+      (sum_ponderation_B , [chemin B])
+      (sum_ponderation_C , [chemin C])
+      (sum_ponderation_D , [chemin D])
+     }
+  *)
+  module SetOfPhase2 = Set.Make (struct
+    type t = int * (node * int) list
+
+    let compare = compare
+  end)
+
+  (**
+  @requires une liste de chemin sous la forme [(a,1) ; (b,2)] ... 
+  @ensures  de calculer le nombre total de la pondération d'un trajet 
+  @raises rien
+  *)
+  let total_pond l = List.fold_right (fun (n, pond) acc -> acc + pond) l 0
+
+  (**
+  prend un ensemble de chemin et le transforme en ensemble ou chaque élément est un couple de la forme
+  (sommePonderationChemin,[chemin])
+  @requires un ensemble de chemin
+  @ensures un ensemble de chemin avec la somme des pondérations facilement accessible
+  @raises rien 
+  *)
+  let ponderation_of_set ens =
+    SetOfPath.fold
+      (fun listOfPath acc ->
+        SetOfPhase2.add (total_pond listOfPath, listOfPath) acc)
+      ens SetOfPhase2.empty
 end
