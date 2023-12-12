@@ -53,6 +53,15 @@ module type S = sig
   (** Le graph vide *)
   val empty : graph
 
+  (**********************  LIST TO GRAPH FUNCTION *****************************)
+
+  (**
+  @requires une node list
+  @ensures un graph ou il y a des edges entre plusieurs noeuds.
+  @raises rien 
+  *)
+  val list_to_graph : (node*node) list -> graph
+
   (**********************  BOOLEAN FUNCTION ***********************************)
 
   (**
@@ -105,7 +114,7 @@ module type S = sig
   (**
   @requires que n1 appartiennent au graph 
   @ensures un booléen indiquant si n1 ---------> n2
-  @raises si n1 n'appartient pas au graph 
+  @raises rien 
   *)
   val mem_edge : node -> node -> graph -> bool
 
@@ -130,7 +139,7 @@ module type S = sig
   au noeud B avec la pondération n
   @requires les 2 noeuds existent 
   @ensures la création d'une arête entre les 2 noeuds
-  @raises EmptyMap si les 2 noeuds n'existe pas
+  @raises rien
   *)
   val add_edge : node -> int -> node -> graph -> graph
 
@@ -261,7 +270,7 @@ module Make (X : Map.OrderedType) = struct
   let empty = NodeMap.empty
   let is_empty g = NodeMap.is_empty g
 
-  (**********************  SUCCS FUNCTION ***********************************)
+  (***********  let ***********  SUCCS FUNCTION ***********************************)
 
   let succs (n : node) (g : graph) =
     (*si le noeud appartient au graph,
@@ -323,13 +332,12 @@ module Make (X : Map.OrderedType) = struct
   let mem_node (n : node) (g : graph) = NodeMap.mem n g
 
   let mem_edge (n1 : node) (n2 : node) (g : graph) =
-    (*si n1 n'est pas dans le graph , exception*)
-    if not (mem_node n1 g) then
-      failwith "mem_edge : le noeud n1 n'appartient pas au graph"
-      (*sinon on cherche parmi ses successeurs si n2 existe *)
-    else
+    if (mem_node n1 g) then 
+      (* si le départ appartient au graph *)
       let succs_of_n1 = succs n1 g in
       NodeMap.mem n2 succs_of_n1
+    else 
+    false 
 
   let mem_exist_as_successor (n : node) (g : graph) =
     NodeMap.fold (fun noeud valeur acc -> acc || NodeMap.mem n valeur) g false
@@ -362,17 +370,15 @@ module Make (X : Map.OrderedType) = struct
   let add_node (base_node : node) (ponderation : int) (node_to_add : node)
       (g : graph) =
     (*si le noeud de base existe*)
-    if mem_node base_node g then
+    let graphWithBase = add_lonely_node base_node g in 
       (*on vérifie qu'on ne crée pas de boucle *)
       if not (base_node = node_to_add) then
         (*on crée le nouveau noeud*)
-        let newGraph = add_lonely_node node_to_add g in
+        let newGraph = add_lonely_node node_to_add graphWithBase in
         (* on lie les 2 noeud *)
         add_edge base_node ponderation node_to_add newGraph
       else
-        g
-    else
-      failwith "add_node : le noeud de base n'existe pas"
+        graphWithBase
 
   let add_default_node (n1 : node) (n2 : node) (g : graph) = add_node n1 1 n2 g
 
@@ -421,6 +427,27 @@ module Make (X : Map.OrderedType) = struct
   let number_of_outgoing_edge (n : node) (g : graph) =
     let map_of_succs = succs n g in
     NodeMap.cardinal map_of_succs
+
+  (*TODO PAS TESTER A PARTIR DE LA *)
+
+  (********************  LIST TO GRAPH FUNCTION ****************************)
+  (* crée les noeuds ainsi que le lien entre start et finish
+
+  goal : 
+  [(a1,b1);(a1,b2)]
+  a1 ------> b1
+  |
+  |--------> b2
+
+  *)
+
+  let list_to_graph (l:(node*int*node) list ) (g:graph)= 
+    List.fold_right 
+    (fun (start,pond,finish) acc -> 
+      add_node start pond finish acc 
+    )
+    l
+    g
 
   (***********************************************************)
   (********************  BFS *********************************)
@@ -555,11 +582,14 @@ module Make (X : Map.OrderedType) = struct
       (fun listOfPath -> List.length listOfPath = shortest)
       allPath
 
-  (*phase 2*)
-
-  (*RIEN A ETE TESTER*)
+  (***********************************************************)
+  (***********************************************************)
+  (******************** phase 2 ******************************)
+  (***********************************************************)
+  (***********************************************************)
 
   (* V0 :  naive *)
+
   (* but : la fonction allPath nous donne un ensemble de chemin ou la pondération est marqué
      pour chaque chemin, on va donc prendre cette ensemble, transformé chaque liste d'ensemble en couple
      càd que si l'ensemble était
@@ -603,4 +633,26 @@ module Make (X : Map.OrderedType) = struct
       (fun listOfPath acc ->
         SetOfPhase2.add (total_pond listOfPath, listOfPath) acc)
       ens SetOfPhase2.empty
+
+  (*prend le plus chemin avec la plus grosse pondération *)
+  let sizeLongestPath ens = 
+    SetOfPhase2.fold 
+    (
+      fun (pond,l) acc -> 
+        if pond > acc then pond else acc 
+    )
+    ens 
+    0
+
+  (* filtre qui donnne tous les chemins qui ont la taille supérieur *)
+  let longestPath ens = 
+    let sizeOfLongest = sizeLongestPath ens in 
+    SetOfPhase2.filter 
+    ( fun (n,l) -> n = sizeOfLongest )
+    ens 
+
+  (* V1 : Dinic  *)
+
+
+
 end

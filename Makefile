@@ -1,4 +1,5 @@
-OCAMLFLAGS = ocamlc
+OCAMLFLAGS = ocamlc -g
+OCAMLDEBUG = ocamlrun -b -t cprogs
 TARGET = test
 
 .PHONY = all clean tests
