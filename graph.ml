@@ -60,7 +60,7 @@ module type S = sig
   @ensures un graph ou il y a des edges entre plusieurs noeuds.
   @raises rien 
   *)
-  val list_to_graph : (node*node) list -> graph
+  val list_to_graph : (node * node) list -> graph
 
   (**********************  BOOLEAN FUNCTION ***********************************)
 
@@ -330,12 +330,12 @@ module Make (X : Map.OrderedType) = struct
   let mem_node (n : node) (g : graph) = NodeMap.mem n g
 
   let mem_edge (n1 : node) (n2 : node) (g : graph) =
-    if (mem_node n1 g) then 
+    if mem_node n1 g then
       (* si le départ appartient au graph *)
       let succs_of_n1 = succs n1 g in
       NodeMap.mem n2 succs_of_n1
-    else 
-    false 
+    else
+      false
 
   let mem_exist_as_successor (n : node) (g : graph) =
     NodeMap.fold (fun noeud valeur acc -> acc || NodeMap.mem n valeur) g false
@@ -368,15 +368,15 @@ module Make (X : Map.OrderedType) = struct
   let add_node (base_node : node) (ponderation : int) (node_to_add : node)
       (g : graph) =
     (*si le noeud de base existe*)
-    let graphWithBase = add_lonely_node base_node g in 
-      (*on vérifie qu'on ne crée pas de boucle *)
-      if not (base_node = node_to_add) then
-        (*on crée le nouveau noeud*)
-        let newGraph = add_lonely_node node_to_add graphWithBase in
-        (* on lie les 2 noeud *)
-        add_edge base_node ponderation node_to_add newGraph
-      else
-        graphWithBase
+    let graphWithBase = add_lonely_node base_node g in
+    (*on vérifie qu'on ne crée pas de boucle *)
+    if not (base_node = node_to_add) then
+      (*on crée le nouveau noeud*)
+      let newGraph = add_lonely_node node_to_add graphWithBase in
+      (* on lie les 2 noeud *)
+      add_edge base_node ponderation node_to_add newGraph
+    else
+      graphWithBase
 
   let add_default_node (n1 : node) (n2 : node) (g : graph) = add_node n1 1 n2 g
 
@@ -431,21 +431,17 @@ module Make (X : Map.OrderedType) = struct
   (********************  LIST TO GRAPH FUNCTION ****************************)
   (* crée les noeuds ainsi que le lien entre start et finish
 
-  goal : 
-  [(a1,b1);(a1,b2)]
-  a1 ------> b1
-  |
-  |--------> b2
-
+     goal :
+     [(a1,b1);(a1,b2)]
+     a1 ------> b1
+     |
+     |--------> b2
   *)
 
-  let list_to_graph (l:(node*int*node) list ) (g:graph)= 
-    List.fold_right 
-    (fun (start,pond,finish) acc -> 
-      add_node start pond finish acc 
-    )
-    l
-    g
+  let list_to_graph (l : (node * int * node) list) (g : graph) =
+    List.fold_right
+      (fun (start, pond, finish) acc -> add_node start pond finish acc)
+      l g
 
   (***********************************************************)
   (********************  BFS *********************************)
@@ -633,24 +629,19 @@ module Make (X : Map.OrderedType) = struct
       ens SetOfPhase2.empty
 
   (*prend le plus chemin avec la plus grosse pondération *)
-  let sizeLongestPath ens = 
-    SetOfPhase2.fold 
-    (
-      fun (pond,l) acc -> 
-        if pond > acc then pond else acc 
-    )
-    ens 
-    0
+  let sizeLongestPath ens =
+    SetOfPhase2.fold
+      (fun (pond, l) acc ->
+        if pond > acc then
+          pond
+        else
+          acc)
+      ens 0
 
   (* filtre qui donnne tous les chemins qui ont la taille supérieur *)
-  let longestPath ens = 
-    let sizeOfLongest = sizeLongestPath ens in 
-    SetOfPhase2.filter 
-    ( fun (n,l) -> n = sizeOfLongest )
-    ens 
+  let longestPath ens =
+    let sizeOfLongest = sizeLongestPath ens in
+    SetOfPhase2.filter (fun (n, l) -> n = sizeOfLongest) ens
 
   (* V1 : Dinic  *)
-
-
-
 end
