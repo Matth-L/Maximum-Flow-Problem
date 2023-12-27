@@ -420,3 +420,51 @@ let _ =
       List.iter (fun (node, ponderation) -> Printf.printf "%c" node) path;
       Printf.printf "\n")
     longestSet
+
+(******************** TEST dinic ************************)
+
+(*test nombre de niveau*)
+
+let _ =
+  let graph =
+    PGraph.list_to_graph
+      [
+        ('a', 1, 'b');
+        ('a', 6, 'd');
+        ('a', 8, 'e');
+        ('b', 7, 'c');
+        ('e', 2, 'g');
+        ('b', 3, 'f');
+        ('g', 4, 'c');
+        ('f', 5, 'c');
+        ('e', 6, 'c');
+      ]
+      PGraph.empty
+  in
+  let all_path = PGraph.allShortestPaths 'a' 'c' graph in
+  (*compte le nombre de niveau*)
+  let listLength =
+    (* on enlève -2 car le puit et la source sont dedans *)
+    PGraph.SetOfPath.fold (fun l acc -> (List.length l - 2) :: acc) all_path []
+  in
+  List.iter (fun x -> Printf.printf "%i " x) listLength
+
+(*test nom des arêtes enlevé *)
+let _ =
+  let graph =
+    PGraph.list_to_graph
+      [
+        ('a', 1, 'b');
+        ('a', 6, 'd');
+        ('a', 8, 'e');
+        ('b', 7, 'c');
+        ('e', 2, 'g');
+        ('b', 3, 'f');
+        ('g', 4, 'c');
+        ('f', 5, 'c');
+        ('e', 6, 'c');
+      ]
+      PGraph.empty
+  in
+  let set_blacklist = PGraph.blacklisted_node 'a' 'c' graph in
+  PGraph.NodeSet.iter (fun node -> Printf.printf "\n%c" node) set_blacklist

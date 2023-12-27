@@ -261,9 +261,16 @@ end
 
 module Make (X : Map.OrderedType) = struct
   module NodeMap = Map.Make (X)
+  module NodeSet = Set.Make (X)
 
   type node = X.t
+
+  (*
+  TODO changez l'entièreté du fichier pour que les arêtes soit de la forme (0,x)
+  + changez typage non inutile 
+  *)
   type graph = int NodeMap.t NodeMap.t
+  type graph_dinic = (int * int) NodeMap.t NodeMap.t
 
   let empty = NodeMap.empty
   let is_empty g = NodeMap.is_empty g
@@ -279,7 +286,7 @@ module Make (X : Map.OrderedType) = struct
   (**********************  FOLD FUNCTION ***********************************)
 
   (*
-     le fold n'est fait que sur les clé
+  le fold n'est fait que sur les clé
   *)
   let fold_node (f : node -> 'a -> 'a) (g : graph) (acc : 'a) =
     NodeMap.fold (fun currNode _ acc -> f currNode acc) g acc
@@ -291,14 +298,14 @@ module Make (X : Map.OrderedType) = struct
      c --> a 
      a --> c
      { a : {
-            b: 1 ; 
-            c: 1
-            }
+       b: 1 ; 
+       c: 1
+       }
        b : {c: 1}
        c : {a: 1}
      }
      l'un des élement qui recevra la fonction f sera b et c du noeud a par ex
-  *)
+     *)
   let fold_succs (f : node -> int -> 'a -> 'a) (g : graph) (acc : 'a) =
     NodeMap.fold
       (fun noeud successeur acc1 ->
@@ -429,8 +436,8 @@ module Make (X : Map.OrderedType) = struct
   (*TODO PAS TESTER A PARTIR DE LA *)
 
   (********************  LIST TO GRAPH FUNCTION ****************************)
-  (* crée les noeuds ainsi que le lien entre start et finish
 
+  (* crée les noeuds ainsi que le lien entre start et finish
      goal :
      [(a1,b1);(a1,b2)]
      a1 ------> b1
@@ -444,57 +451,57 @@ module Make (X : Map.OrderedType) = struct
       l g
 
   (***********************************************************)
-  (********************  BFS *********************************)
+  (******************** début ********************************)
   (***********************************************************)
 
   (**
-    BUT
-              |-----> f
-              |
+  BUT
+  |-----> f
+  |
       a ----> b ----> c
       |               ^
       |-----> d       |
       |               |
       |-----> e ----> g
-
+      
       1)
-
+      
       [
-
-      [(b,1)]
-      [(d,1)]
-      [(e,1)]
-
-      ]
+        
+        [(b,1)]
+        [(d,1)]
+        [(e,1)]
+        
+        ]
       2)
       focus sur [(b,1)]
       [b,1] =>
-
+      
       [
-
-      [(c,1);(b,1)]
-      [(f,1);(b,1)]
-
-      ]
-
-      puis on remplace (b,1) par le nouveau chemin
+        
+        [(c,1);(b,1)]
+        [(f,1);(b,1)]
+        
+        ]
+        
+        puis on remplace (b,1) par le nouveau chemin
       [
-
-      [(c,1);(b,1)]
-      [(f,1);(b,1)]
-      [(d,1)]
-      [(e,1)]
-
-      ]
-      **)
+        
+        [(c,1);(b,1)]
+        [(f,1);(b,1)]
+        [(d,1)]
+        [(e,1)]
+        
+        ]
+        **)
 
   (********************  Ensemble chemin *********************************)
 
   (*
-     pour stocker les chemins, on va utiliser des ensembles,
-     cela permet de ne pas se faire avoir par l'ordre et de fold
+  pour stocker les chemins, on va utiliser des ensembles,
+  cela permet de ne pas se faire avoir par l'ordre et de fold
      sans prendre en compte du sens dans lequel on lit
-  *)
+     *)
   module SetOfPath = Set.Make (struct
     type t = (node * int) list
 
@@ -582,25 +589,27 @@ module Make (X : Map.OrderedType) = struct
   (***********************************************************)
   (***********************************************************)
 
-  (* V0 :  naive *)
+  (***********************************************************)
+  (******************** V0 : naive ***************************)
+  (***********************************************************)
 
   (* but : la fonction allPath nous donne un ensemble de chemin ou la pondération est marqué
      pour chaque chemin, on va donc prendre cette ensemble, transformé chaque liste d'ensemble en couple
      càd que si l'ensemble était
      couteux car fold sur chaque élement
      {
-      [chemin A]
-      [chemin B]
-      [chemin C]
-      [chemin D]
-     }
-     =>
-     {
-      (sum_ponderation_A , [chemin A])
-      (sum_ponderation_B , [chemin B])
-      (sum_ponderation_C , [chemin C])
-      (sum_ponderation_D , [chemin D])
-     }
+       [chemin A]
+       [chemin B]
+       [chemin C]
+       [chemin D]
+       }
+       =>
+       {
+         (sum_ponderation_A , [chemin A])
+         (sum_ponderation_B , [chemin B])
+         (sum_ponderation_C , [chemin C])
+         (sum_ponderation_D , [chemin D])
+         }
   *)
   module SetOfPhase2 = Set.Make (struct
     type t = int * (node * int) list
@@ -643,5 +652,62 @@ module Make (X : Map.OrderedType) = struct
     let sizeOfLongest = sizeLongestPath ens in
     SetOfPhase2.filter (fun (n, l) -> n = sizeOfLongest) ens
 
-  (* V1 : Dinic  *)
+  (***********************************************************)
+  (******************** V1 : dinic ***************************)
+  (***********************************************************)
+  (* https://www.youtube.com/watch?v=M6cm8UeeziI *)
+
+  (* Pour connaitre le nombre de niveau il faut faire un BFS *)
+  (* Les arêtes qui font passer du niveau N+1 au niveau N doivent être retirées du graphe. *)
+  (* Les arêtes qui reste du niveau N au niveau N aussi *)
+
+  (* Etape 1 : Construire le graphe de niveau en faisant un BFS de la source à la destination.
+     Etape 2 : Si le puit n'a jamais été atteint retourner le graph , c'est le graph de flow max
+     Etape 3 : En utilisant seulement les arêtes valides, faire plusieurs DFS jusqu'a atteindre le flot bloquant
+     La somme des flots bottleneck est le flot max *)
+
+  (*les niveaux se font uniquement à partir des chemins les plus courts
+    vers le puits, ils font donc faire la liste des noeuds qui n'en font
+    pas partie,
+    à la fin on a un ensemble de tous les noeuds qui ne font pas partie des plus courts chemins*)
+  let blacklisted_node start goal g =
+    (* on créer un ensemble qui contient tous les noeuds du graph *)
+    let set_of_all_node =
+      fold_node (fun node acc -> NodeSet.add node acc) g NodeSet.empty
+    in
+    let set_shortest_path = allShortestPaths start goal g in
+    (* on crée un ensemble qui contient tous les noeuds du plus petit*)
+    let set_of_node_shortest_path =
+      SetOfPath.fold
+        (fun listOfPath acc ->
+          List.fold_right
+            (fun (node, pond) acc -> NodeSet.add node acc)
+            listOfPath acc)
+        set_shortest_path NodeSet.empty
+    in
+    NodeSet.diff set_of_all_node set_of_node_shortest_path
+
+  (* but
+
+     Pour chaque chemin dans l'ensemble des chemins les plus courts
+     - Parcourir de source à destination, en utilisant uniquement les arêtes valides
+     si on atteint la destination, on met le poids de toutes les arêtes par lequel on
+     est passé à jour, c'est à dire au flot bloquant (puis blacklist les noeuds empruntés)
+     - On s'arrête quand on ne peut plus atteindre la destination par des arêtes
+     qui n'ont pas déja été utilisé (regarder si le noeud est dans la blacklist)
+     - On recommence l'algorithme seulement sur les arêtes ou false
+
+     2 étapes :
+
+     Préliminaire:
+     graph -> graph
+     (on enlève les noeuds/arêtes qui ne
+     sont pas dans les plus courts chemins)
+
+     Initialisation :
+     graph -> graph (Il n'a aucun flot bloquant)
+
+     Récurrence :
+     graph -> graph (on met à jour les poids des arêtes)
+  *)
 end
