@@ -62,6 +62,13 @@ module type S = sig
   *)
   val list_to_graph : (node * node) list -> graph
 
+  (**
+  @requires une node list
+  @ensures un graph ou il y a des edges entre plusieurs noeuds.
+  @raises rien
+  *)
+  val list_to_graph_no_pond : node list -> graph
+
   (**********************  BOOLEAN FUNCTION ***********************************)
 
   (**
@@ -76,8 +83,8 @@ module type S = sig
   (**
   @requires le noeud node appartient au graph 
   @ensures un ensemble correspondant au successeur du noeud 
-  passé en paramètre
-  @raises le noeud dont on cherche le successeur n'appartient pas au graph 
+  passé en paramètre, si le noeud n'a pas de successeur, on retourne un ensemble vide
+  @raises rien
   *)
   val succs : node -> graph -> 'a NodeMap.t
 
@@ -89,14 +96,14 @@ module type S = sig
   *)
 
   (**
-  @requires Rien
+  @requires un graph
   @ensures un fold sur le graph
   @raises Rien
   *)
   val fold_node : (node -> 'a -> 'a) -> graph -> 'a -> 'a
 
   (**
-  @requires Rien
+  @requires un graph
   @ensures un fold sur les successeurs du noeud
   @raises Rien
   *)
@@ -128,39 +135,42 @@ module type S = sig
   (**********************  ADDING FUNCTION ***********************************)
 
   (**
-  @requires un noeud au graph, ce noeud n'est relié à rien 
-  @ensures l'ajout d'un noeud au graph si le noeud existe, il n'est pas rajouté
+  @requires un noeud
+  @ensures l'ajout d'un noeud au graph, relié rien ,
+  uniquement si le noeud n'existe pas déjà 
   @raises Rien
   *)
   val add_lonely_node : node -> graph
 
   (**
   @brief Fonction qui prend 2 noeud existant et qui lie le noeud A 
-  au noeud B avec la pondération n
+  au noeud B avec la pondération (min,max) 
   @requires les 2 noeuds existent 
   @ensures la création d'une arête entre les 2 noeuds
-  @raises rien
+  @raises failwith si les 2 noeuds n'existe pas 
   *)
-  val add_edge : node -> int -> node -> graph -> graph
+  val add_edge : node -> int -> int -> node -> graph -> graph
 
   (**
-  @brief Même fonction que pour add_edge mais pour les graphe non pondéré (toutes les pondérations sont à 1 )
-  @requires les 2 noeuds existent 
-  @ensures la création d'une arête entre les 2 noeuds
-  @raises EmptyMap 
-  *)
-  val add_default_edge : node -> graph
-
-  (**
-  @brief Fonction qui prend un noeud et un entier, la fonction ajoute un successeur à ce noeud, de pondération n, elle crée donc un node et connecte les 2 
-  @requires que le noeud existe dans le graph 
-  @ensures, l'ajoute d'un noeud de pondération n , successeur du noeud
-  donnée en paramètre 
-  @raises EmptyMap si le noeud en paramètre n'existe pas 
-  @example add_node (B) 2 (C) (G) (donne le graph ascii plus haut)
+  @brief Fonction qui prend 2 noeud, les crée si ils n'existent pas
+  et les lie entre eux avec la pondération (min,max)
+  @requires rien 
+  @ensures La création de 2 noeuds et d'une arête entre les 2
+  @raises Rien car les 2 noeuds sont crée, le test de add_edge
+  n'est pas censé retourner une erreur
+  @example add_node (B) 2 (C) (G) 
   B ----------- 2 ---------> C 
   *)
-  val add_node : node -> int -> node -> graph -> graph
+  val add_node : node -> int -> int -> node -> graph -> graph
+
+  (**
+  @brief Même fonction que pour add_edge mais pour les graphe non pondéré 
+  (toutes les pondérations sont à (0,1) )
+  @requires les 2 noeuds existent 
+  @ensures la création d'une arête entre les 2 noeuds
+  @raises failwith si les 2 noeuds n'existe pas
+  *)
+  val add_default_edge : node -> graph
 
   (**
   @brief Même fonction que add_node mais dans un cas non pondéré
@@ -176,7 +186,7 @@ module type S = sig
   (**
   @requires les 2 nodeuds 
   @ensures que l'arête 1 ------> 2 soit supprimer 
-  @raises EmptyMap si les 2 noeuds n'existe pas
+  @raises failwith si les 2 noeuds n'existe pas
   @warning si A ---> A , on supprime l'arête mais pas le noeud
   *)
   val remove_edge : node -> node -> graph -> graph
@@ -184,16 +194,14 @@ module type S = sig
   (**
   @requires les 2 nodeuds 
   @ensures que l'arête 1 -----> 2 ET 2 --------> 1
-  @raises EmptyMap si les 2 noeuds n'existe pas
+  @raises failwith si les 2 noeuds n'existe pas (voir remove_edge)
   *)
   val remove_edges : node -> node -> graph -> graph
 
   (**
   @requires le noeud à récupérer ainsi que le graph 
   @ensures que le noeud soit bien retirer du graph ainsi que les noeuds qui pointent vers lui
-  @raises Riencherche  
-  @brief, il faut utiliser un fold , il faut fold le remove edge sur tous
-  les noeuds du graph 
+  @raises Rien
   *)
   val remove_node : node -> graph -> graph
 
@@ -264,32 +272,25 @@ module Make (X : Map.OrderedType) = struct
   module NodeSet = Set.Make (X)
 
   type node = X.t
-
-  (*
-  TODO changez l'entièreté du fichier pour que les arêtes soit de la forme (0,x)
-  + changez typage non inutile 
-  *)
-  type graph = int NodeMap.t NodeMap.t
-  type graph_dinic = (int * int) NodeMap.t NodeMap.t
+  type graph = (int * int) NodeMap.t NodeMap.t
 
   let empty = NodeMap.empty
   let is_empty g = NodeMap.is_empty g
 
   (***********  let ***********  SUCCS FUNCTION ***********************************)
 
-  let succs (n : node) (g : graph) =
+  let succs n g =
     (*si le noeud appartient au graph,
       on retourne la clé , sinon on retourne rien*)
-    try NodeMap.find n g
-    with Not_found -> failwith "succs : le noeud n'apppartient pas au graph"
+    try NodeMap.find n g with Not_found -> NodeMap.empty
 
   (**********************  FOLD FUNCTION ***********************************)
 
   (*
-  le fold n'est fait que sur les clé
+  le fold n'est fait que sur les clé, donc les noeuds (from)
   *)
-  let fold_node (f : node -> 'a -> 'a) (g : graph) (acc : 'a) =
-    NodeMap.fold (fun currNode _ acc -> f currNode acc) g acc
+  let fold_node f g v0 =
+    NodeMap.fold (fun currNode _ acc -> f currNode acc) g v0
 
   (*
      Lors du fold, pour chaque clé, on va faire un fold sur les successeurs
@@ -306,90 +307,71 @@ module Make (X : Map.OrderedType) = struct
      }
      l'un des élement qui recevra la fonction f sera b et c du noeud a par ex
      *)
-  let fold_succs (f : node -> int -> 'a -> 'a) (g : graph) (acc : 'a) =
+  let fold_succs f g acc =
     NodeMap.fold
       (fun noeud successeur acc1 ->
         NodeMap.fold
-          (fun noeudSuccs ponderation acc2 -> f noeudSuccs ponderation acc2)
+          (fun noeudSuccs (min, max) acc2 -> f noeudSuccs (min, max) acc2)
           successeur acc1)
-      g acc
-
-  (**
-  @requires un noeud qui existe au graph
-  @ensures, un fold fais sur tous les successeurs d'1 seul noeud
-  @raises Rien 
-  TODO TEST    
-  *)
-  let fold_succs_of_1node (n : node) (f : node -> int -> 'a -> 'a) (g : graph)
-      (acc : 'a) =
-    NodeMap.fold
-      (fun noeud successeur acc1 ->
-        if noeud = n then
-          NodeMap.fold
-            (fun noeudSuccs ponderation acc2 -> f noeudSuccs ponderation acc2)
-            successeur acc1
-        else
-          acc1)
       g acc
 
   (********************** MEM FUNCTION ***********************************)
 
-  let mem_node (n : node) (g : graph) = NodeMap.mem n g
+  let mem_node n g = NodeMap.mem n g
 
-  let mem_edge (n1 : node) (n2 : node) (g : graph) =
+  let mem_edge n1 n2 g =
+    (* n1 -----> n2 ? true : false *)
     if mem_node n1 g then
-      (* si le départ appartient au graph *)
       let succs_of_n1 = succs n1 g in
       NodeMap.mem n2 succs_of_n1
     else
       false
 
-  let mem_exist_as_successor (n : node) (g : graph) =
-    NodeMap.fold (fun noeud valeur acc -> acc || NodeMap.mem n valeur) g false
+  let mem_exist_as_successor n g =
+    if mem_node n g then
+      NodeMap.fold (fun noeud valeur acc -> acc || NodeMap.mem n valeur) g false
+    else
+      false
 
   (**********************  ADDING FUNCTION ***********************************)
 
-  let add_lonely_node (n : node) (g : graph) =
-    (* si un noeud existe déjà, il n'est pas ajouté au graph *)
+  (* ajoute un noeud au graphe, qui n'est relié à rien *)
+  let add_lonely_node n g =
     if mem_node n g then
+      (* si un noeud existe déjà, il n'est pas ajouté au graph *)
       g
-      (*sinon on l'ajoute*)
     else
+      (*sinon on l'ajoute*)
       NodeMap.add n NodeMap.empty g
 
-  (* fais : n1 ----- (pond) ----> n2 ; si n1 et n2 existe dans le graph *)
-  let add_edge (n1 : node) (pond : int) (n2 : node) (g : graph) =
+  (* fais : n1 ----- (min, max) ----> n2 ; si n1 et n2 existe dans le graph *)
+  let add_edge n1 min max n2 g =
     (*si les 2 noeuds existent dans le graph*)
     if mem_node n1 g && mem_node n2 g then
       (*on récupère les successeurs de n1 *)
       let successor_of_n1 = succs n1 g in
       (*on ajoute n2 à la liste des successeurs de n1*)
-      let updated_succs = NodeMap.add n2 pond successor_of_n1 in
+      let updated_succs = NodeMap.add n2 (min, max) successor_of_n1 in
       (* on met à jour la clé *)
       NodeMap.add n1 updated_succs g
     else
-      failwith "add_edge : les 2 noeuds n'existent pas"
+      failwith "add_edge : les noeuds nécessaires n'existent pas "
 
-  let add_default_edge (n1 : node) (n2 : node) (g : graph) = add_edge n1 1 n2 g
+  (* ajoute 2 noeuds et les relies entre eux *)
+  let add_node n1 min max n2 g =
+    let graph_with_n1 = add_lonely_node n1 g in
+    let graph_with_both_node = add_lonely_node n2 graph_with_n1 in
+    add_edge n1 min max n2 graph_with_both_node
 
-  let add_node (base_node : node) (ponderation : int) (node_to_add : node)
-      (g : graph) =
-    (*si le noeud de base existe*)
-    let graphWithBase = add_lonely_node base_node g in
-    (*on vérifie qu'on ne crée pas de boucle *)
-    if not (base_node = node_to_add) then
-      (*on crée le nouveau noeud*)
-      let newGraph = add_lonely_node node_to_add graphWithBase in
-      (* on lie les 2 noeud *)
-      add_edge base_node ponderation node_to_add newGraph
-    else
-      graphWithBase
+  (* cas des graphe non pondérés *)
+  let add_default_edge n1 n2 g = add_edge n1 (0, 1) n2 g
 
+  (* cas des graphe non pondérés *)
   let add_default_node (n1 : node) (n2 : node) (g : graph) = add_node n1 1 n2 g
 
   (**********************  REMOVE FUNCTION ***********************************)
 
-  let remove_edge (n1 : node) (n2 : node) (g : graph) =
+  let remove_edge n1 n2 g =
     if mem_node n1 g && mem_node n2 g then
       (*on supprime l'arête n1 -----> n2 *)
       let successor_of_n1 = succs n1 g in
@@ -398,12 +380,12 @@ module Make (X : Map.OrderedType) = struct
     else
       failwith "remove_edge : les 2 noeuds n'existent pas"
 
-  let remove_edges (n1 : node) (n2 : node) (g : graph) =
+  let remove_edges n1 n2 g =
     let graph_unlink_n1_to_n2 = remove_edge n1 n2 g in
     let graph_unlink_n2_to_n1 = remove_edge n2 n1 graph_unlink_n1_to_n2 in
     graph_unlink_n2_to_n1
 
-  let remove_node (n : node) (g : graph) =
+  let remove_node n g =
     let graph_without_successor_to_n =
       (* pour le dictionnaire de successeurs, on applique remove,
          afin d'enlever la clé n ,
@@ -419,19 +401,25 @@ module Make (X : Map.OrderedType) = struct
   (********************  COUNTING FUNCTION *********************************)
 
   (* nombre d'arc qui pointe vers le noeud*)
-  let number_of_incoming_edge (n : node) (g : graph) =
-    fold_succs
-      (fun node ponderation acc ->
-        if node = n then
-          acc + 1
-        else
-          acc)
-      g 0
+  let number_of_incoming_edge n g =
+    if not (mem_node n g) then
+      failwith "number_of_incoming_edge : le noeud n'existe pas"
+    else
+      fold_succs
+        (fun node _ acc ->
+          if node = n then
+            acc + 1
+          else
+            acc)
+        g 0
 
   (* nombre d'arc qui quitte le noeud, c'est donc le nombre de successeurs*)
   let number_of_outgoing_edge (n : node) (g : graph) =
-    let map_of_succs = succs n g in
-    NodeMap.cardinal map_of_succs
+    if not (mem_node n g) then
+      failwith "number_of_outgoing_edge : le noeud n'existe pas"
+    else
+      let map_of_succs = succs n g in
+      NodeMap.cardinal map_of_succs
 
   (*TODO PAS TESTER A PARTIR DE LA *)
 
@@ -439,25 +427,32 @@ module Make (X : Map.OrderedType) = struct
 
   (* crée les noeuds ainsi que le lien entre start et finish
      goal :
-     [(a1,b1);(a1,b2)]
-     a1 ------> b1
+     [(a,1,2,b);(a,3,4,c)]
+     a --(1,2)---> b
      |
-     |--------> b2
+     |----(3,4)----> c
   *)
 
-  let list_to_graph (l : (node * int * node) list) (g : graph) =
+  let list_to_graph l g =
     List.fold_right
-      (fun (start, pond, finish) acc -> add_node start pond finish acc)
+      (fun (start, min, max, finish) acc -> add_node start min max finish acc)
+      l g
+
+  let list_to_graph_no_pond l g =
+    List.fold_right
+      (fun (start, finish) acc -> add_node start 0 1 finish acc)
       l g
 
   (***********************************************************)
-  (******************** début ********************************)
+  (******************** Phase 1 ******************************)
   (***********************************************************)
 
   (**
-  BUT
-  |-----> f
-  |
+
+  BUT : partir de a , trouver l'ensemble des plus court chemins
+
+              |-----> f
+              |
       a ----> b ----> c
       |               ^
       |-----> d       |
