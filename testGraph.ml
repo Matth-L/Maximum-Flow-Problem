@@ -1,4 +1,21 @@
 module PGraph = Graph.Make (Char)
+module CharSet = Set.Make (Char)
+
+(*
+   a ---> b ----> c
+   ^              |
+   |--------------|
+*)
+let small_graph_1 =
+  PGraph.list_to_graph_no_pond [ ('a', 'b'); ('b', 'c'); ('c', 'a') ]
+
+(*
+   a ---> b ----> c
+   |              ^
+   |--------------|
+*)
+let small_graph_2 =
+  PGraph.list_to_graph_no_pond [ ('a', 'b'); ('a', 'c'); ('b', 'c') ]
 
 let prettyPrint test nameOfTest commentaire =
   if test then
@@ -6,81 +23,41 @@ let prettyPrint test nameOfTest commentaire =
   else
     Printf.printf "%s %s : NOT OK \n" nameOfTest commentaire
 
-(* Beaucoup de test pourrait être condensé en 1 seul mais pour rendre l'impression des test plus explicite je les ai séparé*)
-
-(******************** is_empty TEST ************************)
+(******************** is_empty ************************)
 
 (*test vacuité*)
-let _ =
-  prettyPrint
-    (PGraph.is_empty PGraph.empty)
-    "test_is_empty" "test graph vide de base"
+let vacuite1 g =
+  prettyPrint (PGraph.is_empty g) "test_is_empty" "test graph vide de base"
 
-(*test de vacuité avec un graph non vide*)
-let _ =
-  let graph = PGraph.add_lonely_node 'a' PGraph.empty in
-  prettyPrint (not (PGraph.is_empty graph)) "test_is_empty" "graph non vide"
-
-(******************** fold_node TEST ************************)
+(******************** fold_node ************************)
 
 (* pour tester le fold on va faire différentes opérations
    les noeuds pour voir s'il fonctionne *)
 
 (* on va compter le nombre de noeud de différents graph*)
 
-(* test avec un graph vide*)
-let _ =
-  let graph = PGraph.empty in
-  let result = PGraph.fold_node (fun _ acc -> acc + 1) graph 0 in
-  prettyPrint (result = 0) "test_fold_node" "graph vide -> 0 noeud"
+let test_fold_node g =
+  let numFold = PGraph.fold_node (fun node acc -> acc + 1) g 0 in
+  let numManualFold = PGraph.NodeMap.fold (fun node _ acc -> acc + 1) g 0 in
+  prettyPrint (numFold = numManualFold) "test_fold_node" "fold_node fonctionne"
 
-(* test avec 3 noeud
-   a ---> b ----> c
-   ^              |
-   |--------------|
-*)
-
-let _ =
-  let graph =
-    PGraph.list_to_graph
-      [ ('a', 1, 'b'); ('b', 9, 'c'); ('c', 3, 'a') ]
-      PGraph.empty
-  in
-  let result = PGraph.fold_node (fun _ acc -> acc + 1) graph 0 in
-  prettyPrint (result = 3) "test_fold_node" "graph avec 3 noeuds"
-
-(******************** fold_succs TEST ************************)
-
-(* test avec 3 noeud
-   a ---> b ----> c
-   ^              ^
-   |--------------|
-*)
+(******************** fold_succs ************************)
 
 (* compte le nombre d'arc *)
-let _ =
-  let graph =
-    PGraph.list_to_graph
-      [ ('a', 1, 'b'); ('b', 1, 'c'); ('c', 1, 'a'); ('a', 1, 'c') ]
-      PGraph.empty
+let test_fold_succs g =
+  let numFold = PGraph.fold_succs (fun noeud ponderation acc -> acc + 1) g 0 in
+  let numManualFold =
+    PGraph.NodeMap.fold
+      (fun _ succs acc ->
+        PGraph.NodeMap.fold (fun _ _ acc -> acc + 1) succs acc)
+      g 0
   in
-  let result =
-    PGraph.fold_succs (fun noeud ponderation acc -> acc + 1) graph 0
-  in
-  prettyPrint (result = 4) "test_fold_succs" "graph avec 4 arc"
+  prettyPrint (numFold = numManualFold) "test_fold_succs" "graph avec 4 arc"
 
 (******************** mem_node TEST ************************)
 
-(*test existence d'un noeud*)
-let _ =
-  let graph = PGraph.add_lonely_node 'x' PGraph.empty in
-  let result = PGraph.mem_node 'x' graph in
-  prettyPrint result "test_mem_node" "le noeud x appartient au graph"
-
-(*un noeud qui n'appartient pas au graph, n'appartient pas au graph ... *)
-let _ =
-  let graph = PGraph.add_lonely_node 'A' PGraph.empty in
-  let result = PGraph.mem_node 'V' graph in
+let test_mem_node g node =
+  let result = PGraph.mem_node node g in
   prettyPrint (not result) "test_mem_node" "V not in GraphA "
 
 (******************** mem_edge TEST ************************)
@@ -89,7 +66,7 @@ let _ =
 
 (*test existent d'arête*)
 let _ =
-  let graph = PGraph.list_to_graph [ ('a', 1, 'b') ] PGraph.empty in
+  let graph = PGraph.list_to_graph_no_pond [ ('a', 'b') ] in
   prettyPrint (PGraph.mem_edge 'a' 'b' graph) "test_mem_edge" "A ---> B existe"
 
 (*test si l'un des deux noeuds n'existe pas *)
@@ -111,15 +88,9 @@ let _ =
 (******************** mem_exist_as_successor TEST ************************)
 
 (* test si le noeud a est un successeur d'un noeud *)
-(*
-   b --> a --> c
-*)
 let _ =
-  let graph =
-    PGraph.list_to_graph [ ('b', 4, 'a'); ('a', 2, 'c') ] PGraph.empty
-  in
   (* a est le successeur de b donc vrai *)
-  let result = PGraph.mem_exist_as_successor 'a' graph in
+  let result = PGraph.mem_exist_as_successor 'b' small_graph_1 in
   prettyPrint result "test_mem_exist_as_successor"
     "A est le successeur d'un noeud"
 
@@ -345,17 +316,17 @@ let _ =
 let _ =
   (* set de Test *)
   let graph =
-    PGraph.list_to_graph
+    PGraph.list_to_graph_no_pond
       [
-        ('a', 1, 'b');
-        ('a', 6, 'd');
-        ('a', 8, 'e');
-        ('b', 7, 'c');
-        ('e', 2, 'g');
-        ('b', 3, 'f');
-        ('g', 4, 'c');
-        ('f', 5, 'c');
-        ('e', 6, 'c');
+        ('a', 'b');
+        ('a', 'd');
+        ('a', 'e');
+        ('b', 'c');
+        ('e', 'g');
+        ('b', 'f');
+        ('g', 'c');
+        ('f', 'c');
+        ('e', 'c');
       ]
       PGraph.empty
   in
@@ -394,17 +365,17 @@ let _ =
 let _ =
   (* set de Test *)
   let graph =
-    PGraph.list_to_graph
+    PGraph.list_to_graph_no_pond
       [
-        ('a', 1, 'b');
-        ('a', 6, 'd');
-        ('a', 8, 'e');
-        ('b', 7, 'c');
-        ('e', 2, 'g');
-        ('b', 3, 'f');
-        ('g', 4, 'c');
-        ('f', 5, 'c');
-        ('e', 6, 'c');
+        ('a', 'b');
+        ('a', 'd');
+        ('a', 'e');
+        ('b', 'c');
+        ('e', 'g');
+        ('b', 'f');
+        ('g', 'c');
+        ('f', 'c');
+        ('e', 'c');
       ]
       PGraph.empty
   in
@@ -427,17 +398,17 @@ let _ =
 
 let _ =
   let graph =
-    PGraph.list_to_graph
+    PGraph.list_to_graph_no_pond
       [
-        ('a', 1, 'b');
-        ('a', 6, 'd');
-        ('a', 8, 'e');
-        ('b', 7, 'c');
-        ('e', 2, 'g');
-        ('b', 3, 'f');
-        ('g', 4, 'c');
-        ('f', 5, 'c');
-        ('e', 6, 'c');
+        ('a', 'b');
+        ('a', 'd');
+        ('a', 'e');
+        ('b', 'c');
+        ('e', 'g');
+        ('b', 'f');
+        ('g', 'c');
+        ('f', 'c');
+        ('e', 'c');
       ]
       PGraph.empty
   in
@@ -452,17 +423,17 @@ let _ =
 (*test nom des arêtes enlevé *)
 let _ =
   let graph =
-    PGraph.list_to_graph
+    PGraph.list_to_graph_no_pond
       [
-        ('a', 1, 'b');
-        ('a', 6, 'd');
-        ('a', 8, 'e');
-        ('b', 7, 'c');
-        ('e', 2, 'g');
-        ('b', 3, 'f');
-        ('g', 4, 'c');
-        ('f', 5, 'c');
-        ('e', 6, 'c');
+        ('a', 'b');
+        ('a', 'd');
+        ('a', 'e');
+        ('b', 'c');
+        ('e', 'g');
+        ('b', 'f');
+        ('g', 'c');
+        ('f', 'c');
+        ('e', 'c');
       ]
       PGraph.empty
   in

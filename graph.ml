@@ -107,7 +107,7 @@ module type S = sig
   @ensures un fold sur les successeurs du noeud
   @raises Rien
   *)
-  val fold_succs : (node -> 'a -> 'a) -> graph -> 'a -> 'a
+  val fold_succs : (node -> 'a * 'b -> 'c -> 'c) -> graph -> 'c -> 'c
 
   (**********************  MEM FUNCTION ***********************************)
 
@@ -367,7 +367,7 @@ module Make (X : Map.OrderedType) = struct
   let add_default_edge n1 n2 g = add_edge n1 (0, 1) n2 g
 
   (* cas des graphe non pondérés *)
-  let add_default_node (n1 : node) (n2 : node) (g : graph) = add_node n1 1 n2 g
+  let add_default_node n1 n2 g = add_node n1 1 n2 g
 
   (**********************  REMOVE FUNCTION ***********************************)
 
@@ -421,8 +421,6 @@ module Make (X : Map.OrderedType) = struct
       let map_of_succs = succs n g in
       NodeMap.cardinal map_of_succs
 
-  (*TODO PAS TESTER A PARTIR DE LA *)
-
   (********************  LIST TO GRAPH FUNCTION ****************************)
 
   (* crée les noeuds ainsi que le lien entre start et finish
@@ -433,15 +431,15 @@ module Make (X : Map.OrderedType) = struct
      |----(3,4)----> c
   *)
 
-  let list_to_graph l g =
+  let list_to_graph l =
     List.fold_right
       (fun (start, min, max, finish) acc -> add_node start min max finish acc)
-      l g
+      l empty
 
-  let list_to_graph_no_pond l g =
+  let list_to_graph_no_pond l =
     List.fold_right
       (fun (start, finish) acc -> add_node start 0 1 finish acc)
-      l g
+      l empty
 
   (***********************************************************)
   (******************** Phase 1 ******************************)
@@ -493,44 +491,53 @@ module Make (X : Map.OrderedType) = struct
   (********************  Ensemble chemin *********************************)
 
   (*
-  pour stocker les chemins, on va utiliser des ensembles,
-  cela permet de ne pas se faire avoir par l'ordre et de fold
-     sans prendre en compte du sens dans lequel on lit
-     *)
+    pour stocker les chemins, on va utiliser des ensembles,
+    cela permet de ne pas se faire avoir par l'ordre et de fold
+    sans prendre en compte du sens dans lequel on lit
+  *)
   module SetOfPath = Set.Make (struct
     type t = (node * int) list
 
     let compare = compare
   end)
 
+  (*
+  ex ensemble : 
+ {
+  [(a,1);(b,1)]
+  [(d,1)]
+  [(e,1)]
+ }    
+  *)
+
   (* fonction qui ajoute tous les chemins dans un ensemble de chemin *)
-  let add_paths_to_set ensInit (g : graph) =
+  let add_paths_to_set ensInit g =
     (* on fold dans l'ensemble des chemins*)
     SetOfPath.fold
-      (fun listOfPath acc ->
+      (fun listOfPath acc1 ->
         (* on parcours chaque liste correspondant à un chemin*)
-        (* le premier élement est la tête*)
+        (* on récupère le dernier noeud du chemin*)
         let n, pond = List.hd listOfPath in
         (*on récupère ses successeurs*)
         let succs_of_n = succs n g in
         (*on fold sur tous les successeurs pour les ajouter à l'ensemble des chemins*)
         NodeMap.fold
           (* on ajoute le nouveau chemin à l'ensemble des chemin*)
-            (fun nodeSuccessor ponderationSuccesor acc ->
-            (* on vérifie si le noeud est déja la , ça permet de ne pas tuer la pile en cas de cycle, pour ça il suffit de regarde si la tête c'est le même ça prend moins de temps qu'un mem *)
+            (fun nodeSuccessor (min, max) acc2 ->
+            (* on vérifie si le noeud est déja la , pour ça il suffit de regarde si la tête c'est le même ça prend moins de temps qu'un mem *)
             let newPath =
-              if List.hd listOfPath = (nodeSuccessor, ponderationSuccesor) then
+              if List.hd listOfPath = (nodeSuccessor, max) then
                 listOfPath
               else
-                (nodeSuccessor, ponderationSuccesor) :: listOfPath
+                (nodeSuccessor, max) :: listOfPath
             in
-            SetOfPath.add newPath acc)
-          succs_of_n acc)
+            SetOfPath.add newPath acc2)
+          succs_of_n acc1)
       ensInit ensInit
 
   (* fonction qui tant que les élément dans le SetOfPath ont des successerus, appel add_paths_to_set *)
   (* cela permet de remplir l'ensemble de tous les chemins possibles*)
-  let rec add_paths_to_set_while_possible ensInit (g : graph) =
+  let rec add_paths_to_set_while_possible ensInit g =
     (* on ajoute les chemins tant que c'est possible*)
     let newSetOfPath = add_paths_to_set ensInit g in
     (* si le nouveau set est différent du set de base, on rappel la fonction*)
@@ -539,8 +546,8 @@ module Make (X : Map.OrderedType) = struct
     else
       newSetOfPath
 
-  (* maintenant, il suffit de prendre un noeud de départ et d'appliquer la fonction pour avoir l'ensemmble avec tous les chemins allant de start vers goal *)
-  let all_path (start : node) (goal : node) (g : graph) =
+  (* maintenant, il suffit de prendre un noeud de départ et d'appliquer la fonction pour avoir l'ensemble avec tous les chemins allant de start vers goal *)
+  let all_path start goal g =
     (* on transforme le noeud en ensemble*)
     let startingSet = SetOfPath.singleton [ (start, 0) ] in
 
@@ -557,7 +564,7 @@ module Make (X : Map.OrderedType) = struct
       allSet
 
   (* fonction qui trouve le plus petit chemin à partir d'un ensemble*)
-  let shortestOfSet (set : SetOfPath.t) =
+  let shortestOfSet set =
     (*fold sur l'ensemble*)
     SetOfPath.fold
       (fun listOfPath acc ->
@@ -571,7 +578,7 @@ module Make (X : Map.OrderedType) = struct
       (List.length (SetOfPath.choose set))
 
   (* fonction qui prend tous les chemins dans un ensemble, trouve le plus cours, et filtre afin de garder tout ceux égal au plus court*)
-  let allShortestPaths (start : node) (goal : node) (g : graph) =
+  let allShortestPaths start goal g =
     let allPath = all_path start goal g in
     let shortest = shortestOfSet allPath in
     SetOfPath.filter
