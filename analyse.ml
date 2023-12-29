@@ -42,3 +42,8 @@ let phase2 () =
     let le = parse_line_2 3 cin in
     let _ = close_in cin in
     (src, dst, le)
+
+let _ =
+  let l = phase1 () in
+  let start, goal, edges = l in
+  List.iter (fun (a, b) -> Format.printf "%s %s@." a b) edges

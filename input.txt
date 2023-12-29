@@ -1,0 +1,12 @@
+source
+puits
+9
+source source
+source a
+source a_b
+a_b e
+a a_b
+a c
+c puits
+d puits
+e puits

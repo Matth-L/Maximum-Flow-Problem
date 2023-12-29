@@ -1,23 +1,29 @@
 OCAMLFLAGS = ocamlc -g
 OCAMLDEBUG = ocamlrun -b -t cprogs
-TARGET = test
+TARGET = test phase1
 
-.PHONY = all clean test phase1 phase2
+.PHONY = all clean tests
 
-phase1 : graph.cmo analyse.cmo main.cmo
-	$(OCAMLFLAGS) $< -o $(TARGET) 
+test : graph.cmo testGraph.cmo
+	$(OCAMLFLAGS)  graph.cmo testGraph.cmo -o test
 
-graph.cmo : graph.ml 
-	$(OCAMLFLAGS) -c $<
+phase1 : analyse.cmi analyse.cmo 
+	$(OCAMLFLAGS) analyse.cmo -o phase1 
 
-test : graph.cmo test.cmo
-	$(OCAMLFLAGS) test.cmo -o $(TARGET) 
+main.cmo : main.ml
+	$(OCAMLFLAGS) -c main.ml
 
-%.cmo : %.ml
-	$(OCAMLFLAGS) -c $<
+analyse.cmo : analyse.ml
+	$(OCAMLFLAGS) -c analyse.ml
 
-%.cmi : %.mli
-	$(OCAMLFLAGS) -c $<
+analyse.cmi : analyse.mli
+	$(OCAMLFLAGS) -c analyse.mli
 
-clean : 
-	rm -f *.cmo *.cmi $(TARGET) *.out *.diff
+graph.cmo : graph.ml
+	$(OCAMLFLAGS) -c graph.ml
+
+testGraph.cmo : testGraph.ml
+	$(OCAMLFLAGS) -c testGraph.ml
+
+clean :
+	rm -f *.cmo *.cmi $(TARGET)
