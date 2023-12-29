@@ -364,10 +364,10 @@ module Make (X : Map.OrderedType) = struct
     add_edge n1 min max n2 graph_with_both_node
 
   (* cas des graphe non pondérés *)
-  let add_default_edge n1 n2 g = add_edge n1 (0, 1) n2 g
+  let add_default_edge n1 n2 g = add_edge n1 0 1 n2 g
 
   (* cas des graphe non pondérés *)
-  let add_default_node n1 n2 g = add_node n1 1 n2 g
+  let add_default_node n1 n2 g = add_node n1 0 1 n2 g
 
   (**********************  REMOVE FUNCTION ***********************************)
 
