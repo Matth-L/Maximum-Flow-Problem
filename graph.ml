@@ -60,14 +60,14 @@ module type S = sig
   @ensures un graph ou il y a des edges entre plusieurs noeuds.
   @raises rien 
   *)
-  val list_to_graph : (node * node) list -> graph
+  val list_to_graph : (node * 'a * 'b * node) list -> graph
 
   (**
   @requires une node list
   @ensures un graph ou il y a des edges entre plusieurs noeuds.
   @raises rien
   *)
-  val list_to_graph_no_pond : node list -> graph
+  val list_to_graph_no_pond : (node * node) list -> graph
 
   (**********************  BOOLEAN FUNCTION ***********************************)
 
@@ -250,13 +250,6 @@ module type S = sig
   @raises Rien
   *)
   val add_paths_to_set_while_possible : SetOfPath.t -> graph -> SetOfPath.t
-
-  (**
-  @requires un noeud de départ, un noeud d'arrivé et un graph
-  @ensures un ensemble de chemin correspondant à tous les chemins possible dans le graphe
-  @raises Rien
-  *)
-  val bfs : node -> node -> graph -> SetOfPath.t
 end
 
 (************************************************************************)
@@ -271,7 +264,7 @@ module Make (X : Map.OrderedType) = struct
   module NodeMap = Map.Make (X)
   module NodeSet = Set.Make (X)
 
-  type node = X.t
+  type node = NodeMap.key
   type graph = (int * int) NodeMap.t NodeMap.t
 
   let empty = NodeMap.empty
@@ -421,6 +414,17 @@ module Make (X : Map.OrderedType) = struct
       let map_of_succs = succs n g in
       NodeMap.cardinal map_of_succs
 
+  (******************** GETTER FUNCTION ****************************)
+  let get_flow (n1, n2) g =
+    if mem_edge n1 n2 g then
+      let succs_of_n1 = succs n1 g in
+      let min, max = NodeMap.find n2 succs_of_n1 in
+      (min, max)
+    else
+      failwith "get_flow : l'arête n'existe pas"
+
+  (******************** SETTER FUNCTION ****************************)
+
   (********************  LIST TO GRAPH FUNCTION ****************************)
 
   (* crée les noeuds ainsi que le lien entre start et finish
@@ -431,7 +435,7 @@ module Make (X : Map.OrderedType) = struct
      |----(3,4)----> c
   *)
 
-  let list_to_graph l =
+  let list_to_graph (l : (node * int * int * node) list) : graph =
     List.fold_right
       (fun (start, min, max, finish) acc -> add_node start min max finish acc)
       l empty
@@ -496,7 +500,7 @@ module Make (X : Map.OrderedType) = struct
     sans prendre en compte du sens dans lequel on lit
   *)
   module SetOfPath = Set.Make (struct
-    type t = (node * int) list
+    type t = (node * int * int) list
 
     let compare = compare
   end)
@@ -517,7 +521,7 @@ module Make (X : Map.OrderedType) = struct
       (fun listOfPath acc1 ->
         (* on parcours chaque liste correspondant à un chemin*)
         (* on récupère le dernier noeud du chemin*)
-        let n, pond = List.hd listOfPath in
+        let n, min, max = List.hd listOfPath in
         (*on récupère ses successeurs*)
         let succs_of_n = succs n g in
         (*on fold sur tous les successeurs pour les ajouter à l'ensemble des chemins*)
@@ -526,10 +530,10 @@ module Make (X : Map.OrderedType) = struct
             (fun nodeSuccessor (min, max) acc2 ->
             (* on vérifie si le noeud est déja la , pour ça il suffit de regarde si la tête c'est le même ça prend moins de temps qu'un mem *)
             let newPath =
-              if List.hd listOfPath = (nodeSuccessor, max) then
+              if List.hd listOfPath = (nodeSuccessor, min, max) then
                 listOfPath
               else
-                (nodeSuccessor, max) :: listOfPath
+                (nodeSuccessor, min, max) :: listOfPath
             in
             SetOfPath.add newPath acc2)
           succs_of_n acc1)
@@ -549,7 +553,7 @@ module Make (X : Map.OrderedType) = struct
   (* maintenant, il suffit de prendre un noeud de départ et d'appliquer la fonction pour avoir l'ensemble avec tous les chemins allant de start vers goal *)
   let all_path start goal g =
     (* on transforme le noeud en ensemble*)
-    let startingSet = SetOfPath.singleton [ (start, 0) ] in
+    let startingSet = SetOfPath.singleton [ (start, 0, 0) ] in
 
     (* on applique la fonction, on a donc tous les chemins possible du graph*)
     let allSet = add_paths_to_set_while_possible startingSet g in
@@ -559,7 +563,7 @@ module Make (X : Map.OrderedType) = struct
        la tête *)
     SetOfPath.filter
       (fun listOfPath ->
-        let n, pond = List.hd listOfPath in
+        let n, min, max = List.hd listOfPath in
         n = goal)
       allSet
 
@@ -614,7 +618,7 @@ module Make (X : Map.OrderedType) = struct
          }
   *)
   module SetOfPhase2 = Set.Make (struct
-    type t = int * (node * int) list
+    type t = int * (node * int * int) list
 
     let compare = compare
   end)
@@ -624,7 +628,7 @@ module Make (X : Map.OrderedType) = struct
   @ensures  de calculer le nombre total de la pondération d'un trajet 
   @raises rien
   *)
-  let total_pond l = List.fold_right (fun (n, pond) acc -> acc + pond) l 0
+  let total_pond l = List.fold_right (fun (n, min, max) acc -> acc + max) l 0
 
   (**
   prend un ensemble de chemin et le transforme en ensemble ou chaque élément est un couple de la forme
@@ -657,13 +661,14 @@ module Make (X : Map.OrderedType) = struct
   (***********************************************************)
   (******************** V1 : dinic ***************************)
   (***********************************************************)
+
   (* https://www.youtube.com/watch?v=M6cm8UeeziI *)
 
   (* Pour connaitre le nombre de niveau il faut faire un BFS *)
   (* Les arêtes qui font passer du niveau N+1 au niveau N doivent être retirées du graphe. *)
   (* Les arêtes qui reste du niveau N au niveau N aussi *)
 
-  (* Etape 1 : Construire le graphe de niveau en faisant un BFS de la source à la destination.
+  (* Etape 1 : Construire le graphe de niveau en faisant un BFS de la source à la destination. un graph par niveau est un sous ensemble d'arête
      Etape 2 : Si le puit n'a jamais été atteint retourner le graph , c'est le graph de flow max
      Etape 3 : En utilisant seulement les arêtes valides, faire plusieurs DFS jusqu'a atteindre le flot bloquant
      La somme des flots bottleneck est le flot max *)
@@ -683,7 +688,7 @@ module Make (X : Map.OrderedType) = struct
       SetOfPath.fold
         (fun listOfPath acc ->
           List.fold_right
-            (fun (node, pond) acc -> NodeSet.add node acc)
+            (fun (node, min, max) acc -> NodeSet.add node acc)
             listOfPath acc)
         set_shortest_path NodeSet.empty
     in
@@ -698,18 +703,89 @@ module Make (X : Map.OrderedType) = struct
      - On s'arrête quand on ne peut plus atteindre la destination par des arêtes
      qui n'ont pas déja été utilisé (regarder si le noeud est dans la blacklist)
      - On recommence l'algorithme seulement sur les arêtes ou false
-
-     2 étapes :
-
-     Préliminaire:
-     graph -> graph
-     (on enlève les noeuds/arêtes qui ne
-     sont pas dans les plus courts chemins)
-
-     Initialisation :
-     graph -> graph (Il n'a aucun flot bloquant)
-
-     Récurrence :
-     graph -> graph (on met à jour les poids des arêtes)
   *)
+
+  (* fonction qui prend un graph et enlève les noeuds qui ne font pas partie du plus court chemin  pour avoir un graph de niveau  correct *)
+  let clean_graph start goal g =
+    let blacklisted = blacklisted_node start goal g in
+    NodeSet.fold (fun node acc -> remove_node node acc) blacklisted g
+
+  (* maintenant, il faut prendre un chemin, qu va de start à goal
+     prendre le minimum de flow disponible pdt se trajet, mettre à jour le graph, et retourner le graph, si le flot min est plus petit que ce que l'on cherche à inscrire, une fois qu'une *)
+
+  let get3rd (n1, n2, n3) = n3
+
+  (* fonction qui prend un chemin et qui retourne le flot bottleneck *)
+  (* il faut trouver le plus petit max de la liste *)
+  let get_bottleneck l =
+    List.fold_left
+      (fun acc (n1, min, max) ->
+        if max < acc || max != 0 then
+          max
+        else
+          acc)
+      (get3rd (List.hd l))
+      l
+
+  (* s'il y a un flot bloquant, on arrête, il faut donc pouvoir en répérer un *)
+
+  (**
+  @warning list_of_path est dans le bon sens  
+  *)
+  let there_is_blocking_flow list_of_path g =
+    let rec aux l =
+      match l with
+      | [] | [ _ ] -> false (* on a besoin de 2 noeud pour avoir le flot*)
+      (* il faut regarder dans le graph car les informations des liste ne sont peut être plus à jour *)
+      | (n1, min1, max1) :: (n2, min2, max2) :: t ->
+          let min, max = get_flow (n1, n2) g in
+          if min = max then
+            true
+          else
+            aux ((n2, min2, max2) :: t)
+    in
+    aux list_of_path
+
+  let change_flow n1 n2 min max g =
+    let succs_of_n1 = succs n1 g in
+    let new_succs_n1 = NodeMap.add n2 (min, max) succs_of_n1 in
+    NodeMap.add n1 new_succs_n1 g
+
+  (* en appliquant le bottleneck à la liste à l'envers, donc de start à goal, on le parcourt également, si on sature une arête on la supprime du graphe , on refait l'ensemble à partir de ça et on recommence ? *)
+
+  (**
+  @warning list_of_path est dans le bon sens
+  *)
+  let apply_bottleneck list_of_path g =
+    if there_is_blocking_flow list_of_path g then
+      g
+    else
+      (* il n'y a aucun flot bloquant la ou on se situe*)
+      let bneck = get_bottleneck list_of_path in
+      Printf.printf "bottleneck : %d\n" bneck;
+      (* on applique le bottleneck à toutes les arêtes *)
+      let rec aux l graphAux =
+        match l with
+        | (n1, min1, max1) :: (n2, min2, max2) :: t ->
+            (* on change la valeur du flow *)
+            let newG = change_flow n1 n2 bneck max2 graphAux in
+            (* on applique aux élements d'après *)
+            aux ((n2, min2, max2) :: t) newG
+        | [] | [ _ ] -> graphAux
+      in
+      aux list_of_path g
+
+  (* une itération est faite, il faut maintenant supprimer les arêtes *)
+
+  let clean_graph_of_saturated_edge g =
+    NodeMap.fold
+      (fun noeudStart succs acc ->
+        NodeMap.fold
+          (fun noeudEnd (min, max) acc1 ->
+            if min = max then
+              remove_edge noeudStart noeudEnd acc1
+            else
+              acc1)
+          succs acc)
+      g g
 end

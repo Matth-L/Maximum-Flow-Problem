@@ -17,6 +17,56 @@ let small_graph_1 =
 let small_graph_2 =
   PGraph.list_to_graph_no_pond [ ('a', 'b'); ('a', 'c'); ('b', 'c') ]
 
+(*
+  semble fonctionner 
+             |-----> f
+             |       |
+             |       v
+     a ----> b ----> c <---
+     |               ^    |
+     |-----> d       |    |
+     |               |    |
+     |-----> e ----> g    |
+             |            |
+             |------------|
+
+     + boucle sur b
+     graph test
+*)
+
+let big_graph =
+  PGraph.list_to_graph_no_pond
+    [
+      ('a', 'b');
+      ('a', 'd');
+      ('a', 'e');
+      ('b', 'c');
+      ('e', 'g');
+      ('b', 'f');
+      ('g', 'c');
+      ('f', 'c');
+      ('e', 'c');
+    ]
+
+(*graph de la vidéo*)
+let goal_graph =
+  PGraph.list_to_graph
+    [
+      ('s', 0, 5, 'a');
+      ('a', 0, 10, 'b');
+      ('b', 0, 10, 'c');
+      ('c', 0, 5, 't');
+      ('s', 0, 10, 'd');
+      ('d', 0, 20, 'e');
+      ('e', 0, 30, 'f');
+      ('f', 0, 15, 't');
+      ('s', 0, 15, 'g');
+      ('g', 0, 25, 'h');
+      ('h', 0, 20, 'f');
+      ('h', 0, 10, 'i');
+      ('i', 0, 10, 't');
+    ]
+
 let graph_a_b = PGraph.list_to_graph_no_pond [ ('a', 'b') ]
 
 let prettyPrint test nameOfTest commentaire =
@@ -24,6 +74,21 @@ let prettyPrint test nameOfTest commentaire =
     Printf.printf "%s %s : OK \n" nameOfTest commentaire
   else
     Printf.printf "%s %s : NOT OK \n" nameOfTest commentaire
+
+let pretty_print_all_shortest_paths setPath =
+  Printf.printf "all_shortest_paths: \n";
+  PGraph.SetOfPath.iter
+    (fun path ->
+      match path with
+      | [] -> ()
+      | (first_node, min, max) :: rest_of_path ->
+          Printf.printf "Path: [%c,(%i ;%i)]" first_node min max;
+          List.iter
+            (fun (node, min, max) ->
+              Printf.printf " <-- [%c,(%i ;%i)]" node min max)
+            rest_of_path;
+          Printf.printf "\n")
+    setPath
 
 (******************** is_empty ************************)
 
@@ -327,12 +392,8 @@ let _ =
   (*test bfs*)
   let normallySameSet = PGraph.allShortestPaths 'a' 'c' addedCycles in
   (*printing the whole set *)
-  Printf.printf "printing set : \n";
-  PGraph.SetOfPath.iter
-    (fun path ->
-      List.iter (fun (node, ponderation) -> Printf.printf "%c" node) path;
-      Printf.printf "\n")
-    normallySameSet
+  Printf.printf "all_shortest_paths: \n";
+  pretty_print_all_shortest_paths normallySameSet
 
 (******************** TEST naive phase 2************************)
 
@@ -350,7 +411,6 @@ let _ =
              |            |
              |------------|
 
-     + boucle sur b
      graph test
 *)
 
@@ -379,7 +439,9 @@ let _ =
   PGraph.SetOfPhase2.iter
     (fun (n, path) ->
       let _ = Printf.printf "pond : %i \n" n in
-      List.iter (fun (node, ponderation) -> Printf.printf "%c" node) path;
+      List.iter
+        (fun (node, min, max) -> Printf.printf "<-- [%c,(%i ;%i)]" node min max)
+        path;
       Printf.printf "\n")
     longestSet
 
@@ -428,3 +490,18 @@ let _ =
   in
   let set_blacklist = PGraph.blacklisted_node 'a' 'c' graph in
   PGraph.NodeSet.iter (fun node -> Printf.printf "\n%c" node) set_blacklist
+
+(*test get_bottleneck *)
+(* la 1e etape fonctionne *)
+let _ =
+  let shortest = PGraph.allShortestPaths 's' 't' goal_graph in
+  Printf.printf "\nBefore applying bottleneck\n";
+  pretty_print_all_shortest_paths shortest;
+  let g =
+    PGraph.SetOfPath.fold
+      (fun path acc -> PGraph.apply_bottleneck (List.rev path) acc)
+      shortest goal_graph
+  in
+  Printf.printf "\nAfter applying bottleneck\n";
+  let newShortest = PGraph.allShortestPaths 's' 't' g in
+  pretty_print_all_shortest_paths newShortest
