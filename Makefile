@@ -1,6 +1,6 @@
 OCAMLFLAGS = ocamlc -g
 OCAMLDEBUG = ocamlrun -b -t cprogs
-TARGET = test phase1
+TARGET = test phase1 phase2
 
 .PHONY = all clean tests
 
@@ -26,4 +26,4 @@ testGraph.cmo : testGraph.ml
 	$(OCAMLFLAGS) -c testGraph.ml
 
 clean :
-	rm -f *.cmo *.cmi $(TARGET)
+	rm -vf *.cmo *.cmi $(TARGET)

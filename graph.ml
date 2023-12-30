@@ -267,6 +267,23 @@ module Make (X : Map.OrderedType) = struct
   type node = NodeMap.key
   type graph = (int * int) NodeMap.t NodeMap.t
 
+  (*
+    pour stocker les chemins, on va utiliser des ensembles,
+    cela permet de ne pas se faire avoir par l'ordre et de fold
+    sans prendre en compte du sens dans lequel on lit
+  *)
+  module SetOfPath = Set.Make (struct
+    type t = (node * int * int) list
+
+    let compare = compare
+  end)
+
+  module SetOfPhase2 = Set.Make (struct
+    type t = int * (node * int * int) list
+
+    let compare = compare
+  end)
+
   let empty = NodeMap.empty
   let is_empty g = NodeMap.is_empty g
 
@@ -325,6 +342,11 @@ module Make (X : Map.OrderedType) = struct
       NodeMap.fold (fun noeud valeur acc -> acc || NodeMap.mem n valeur) g false
     else
       false
+
+  (* dans set_of_path les listes sont de la forme (n,min,max),
+     il faut donc un moyen de savoir quand n est dedans*)
+  let mem_set_of_path n1 l =
+    List.fold_left (fun acc (n, min, max) -> acc || n = n1) false l
 
   (**********************  ADDING FUNCTION ***********************************)
 
@@ -495,17 +517,6 @@ module Make (X : Map.OrderedType) = struct
   (********************  Ensemble chemin *********************************)
 
   (*
-    pour stocker les chemins, on va utiliser des ensembles,
-    cela permet de ne pas se faire avoir par l'ordre et de fold
-    sans prendre en compte du sens dans lequel on lit
-  *)
-  module SetOfPath = Set.Make (struct
-    type t = (node * int * int) list
-
-    let compare = compare
-  end)
-
-  (*
   ex ensemble : 
  {
   [(a,1);(b,1)]
@@ -515,6 +526,7 @@ module Make (X : Map.OrderedType) = struct
   *)
 
   (* fonction qui ajoute tous les chemins dans un ensemble de chemin *)
+  (* uniquement si l'arête n'est pas pleine *)
   let add_paths_to_set ensInit g =
     (* on fold dans l'ensemble des chemins*)
     SetOfPath.fold
@@ -529,13 +541,16 @@ module Make (X : Map.OrderedType) = struct
           (* on ajoute le nouveau chemin à l'ensemble des chemin*)
             (fun nodeSuccessor (min, max) acc2 ->
             (* on vérifie si le noeud est déja la , pour ça il suffit de regarde si la tête c'est le même ça prend moins de temps qu'un mem *)
-            let newPath =
-              if List.hd listOfPath = (nodeSuccessor, min, max) then
-                listOfPath
-              else
-                (nodeSuccessor, min, max) :: listOfPath
-            in
-            SetOfPath.add newPath acc2)
+            if min <> max then
+              let newPath =
+                if List.hd listOfPath = (nodeSuccessor, min, max) then
+                  listOfPath
+                else
+                  (nodeSuccessor, min, max) :: listOfPath
+              in
+              SetOfPath.add newPath acc2
+            else
+              acc2)
           succs_of_n acc1)
       ensInit ensInit
 
@@ -583,11 +598,15 @@ module Make (X : Map.OrderedType) = struct
 
   (* fonction qui prend tous les chemins dans un ensemble, trouve le plus cours, et filtre afin de garder tout ceux égal au plus court*)
   let allShortestPaths start goal g =
-    let allPath = all_path start goal g in
-    let shortest = shortestOfSet allPath in
-    SetOfPath.filter
-      (fun listOfPath -> List.length listOfPath = shortest)
-      allPath
+    try
+      let allPath = all_path start goal g in
+      let shortest = shortestOfSet allPath in
+      SetOfPath.filter
+        (fun listOfPath -> List.length listOfPath = shortest)
+        allPath
+    with Not_found ->
+      Printf.printf "plus de chemin entre start et goal\n";
+      SetOfPath.empty
 
   (***********************************************************)
   (***********************************************************)
@@ -617,11 +636,6 @@ module Make (X : Map.OrderedType) = struct
          (sum_ponderation_D , [chemin D])
          }
   *)
-  module SetOfPhase2 = Set.Make (struct
-    type t = int * (node * int * int) list
-
-    let compare = compare
-  end)
 
   (**
   @requires une liste de chemin sous la forme [(a,1) ; (b,2)] ... 
@@ -720,8 +734,10 @@ module Make (X : Map.OrderedType) = struct
   let get_bottleneck l =
     List.fold_left
       (fun acc (n1, min, max) ->
-        if max < acc || max != 0 then
-          max
+        if acc = 0 then
+          max - min
+        else if max - min < acc then
+          max - min
         else
           acc)
       (get3rd (List.hd l))
@@ -746,12 +762,22 @@ module Make (X : Map.OrderedType) = struct
     in
     aux list_of_path
 
-  let change_flow n1 n2 min max g =
+  let change_flow n1 n2 (min, max) g =
     let succs_of_n1 = succs n1 g in
     let new_succs_n1 = NodeMap.add n2 (min, max) succs_of_n1 in
     NodeMap.add n1 new_succs_n1 g
 
   (* en appliquant le bottleneck à la liste à l'envers, donc de start à goal, on le parcourt également, si on sature une arête on la supprime du graphe , on refait l'ensemble à partir de ça et on recommence ? *)
+
+  let add_until_saturated bneck borneMin borneMax =
+    let remain = borneMax - borneMin in
+    if remain > 0 then
+      if bneck >= remain then
+        (borneMax, borneMax)
+      else
+        (borneMin + bneck, borneMax)
+    else
+      (borneMin, borneMax)
 
   (**
   @warning list_of_path est dans le bon sens
@@ -767,8 +793,9 @@ module Make (X : Map.OrderedType) = struct
       let rec aux l graphAux =
         match l with
         | (n1, min1, max1) :: (n2, min2, max2) :: t ->
-            (* on change la valeur du flow *)
-            let newG = change_flow n1 n2 bneck max2 graphAux in
+            let newMinMax = add_until_saturated bneck min2 max2 in
+            (* on change la valeur du flow si l'arête n'est pas saturé*)
+            let newG = change_flow n1 n2 newMinMax graphAux in
             (* on applique aux élements d'après *)
             aux ((n2, min2, max2) :: t) newG
         | [] | [ _ ] -> graphAux
@@ -777,15 +804,50 @@ module Make (X : Map.OrderedType) = struct
 
   (* une itération est faite, il faut maintenant supprimer les arêtes *)
 
-  let clean_graph_of_saturated_edge g =
+  (* on crée une liste ou n1 ---> x  est saturé, on stock n1 , dès qu'il apparait dans un chemin on dégage le chemin*)
+  let list_of_blacklisted_node g =
     NodeMap.fold
       (fun noeudStart succs acc ->
         NodeMap.fold
           (fun noeudEnd (min, max) acc1 ->
             if min = max then
-              remove_edge noeudStart noeudEnd acc1
+              noeudStart :: acc1
             else
               acc1)
           succs acc)
-      g g
+      g []
+
+  let get_max_flow goal g =
+    NodeMap.fold
+      (fun noeudStart succs acc ->
+        NodeMap.fold
+          (fun noeudEnd (min, max) acc1 ->
+            if noeudEnd = goal then
+              acc1 + min
+            else
+              acc1)
+          succs acc)
+      g 0
+
+  (* le problème est que l'on fold et donc on rappel dinic avant même qu'il finisse de lire la première liste des ensembles*)
+
+  let clean_set_from_node n ens =
+    SetOfPath.filter (fun listOfPath -> not (mem_set_of_path n listOfPath)) ens
+
+  (* fonction qui prend un ensemble de chemin, une liste de noeud
+     et supprime tous les chemins dont le noeud appartient*)
+  let clean_set s l =
+    List.fold_left (fun acc noeud -> clean_set_from_node noeud acc) s l
+
+  let rec dinic start goal g =
+    let shortest_path = allShortestPaths start goal g in
+    if shortest_path = SetOfPath.empty then
+      g
+    else
+      let g =
+        SetOfPath.fold
+          (fun path acc -> apply_bottleneck (List.rev path) acc)
+          shortest_path g
+      in
+      dinic start goal g
 end

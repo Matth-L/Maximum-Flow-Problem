@@ -67,6 +67,20 @@ let goal_graph =
       ('i', 0, 10, 't');
     ]
 
+let graph_file =
+  PGraph.list_to_graph
+    [
+      ('s', 0, 10, 's');
+      ('s', 0, 10, 'a');
+      ('s', 0, 5, 'b');
+      ('b', 0, 7, 'e');
+      ('a', 0, 4, 'b');
+      ('a', 0, 3, 'c');
+      ('c', 0, 7, 't');
+      ('d', 0, 12, 't');
+      ('e', 0, 28, 't');
+    ]
+
 let graph_a_b = PGraph.list_to_graph_no_pond [ ('a', 'b') ]
 
 let prettyPrint test nameOfTest commentaire =
@@ -474,34 +488,82 @@ let _ =
 
 (*test nom des arêtes enlevé *)
 let _ =
-  let graph =
-    PGraph.list_to_graph_no_pond
-      [
-        ('a', 'b');
-        ('a', 'd');
-        ('a', 'e');
-        ('b', 'c');
-        ('e', 'g');
-        ('b', 'f');
-        ('g', 'c');
-        ('f', 'c');
-        ('e', 'c');
-      ]
-  in
-  let set_blacklist = PGraph.blacklisted_node 'a' 'c' graph in
+  let set_blacklist = PGraph.blacklisted_node 's' 't' graph_file in
   PGraph.NodeSet.iter (fun node -> Printf.printf "\n%c" node) set_blacklist
 
 (*test get_bottleneck *)
-(* la 1e etape fonctionne *)
+
+(* graph vidéo *)
+(* la 1e etape fonctionne
+   let _ =
+     Printf.printf "\n\ntest graph goal_graph \n";
+     let shortest = PGraph.allShortestPaths 's' 't' goal_graph in
+     Printf.printf "\nBefore applying bottleneck\n";
+     pretty_print_all_shortest_paths shortest;
+     let g =
+       PGraph.SetOfPath.fold
+         (fun path acc -> PGraph.apply_bottleneck (List.rev path) acc)
+         shortest goal_graph
+     in
+     Printf.printf "\nAfter applying bottleneck\n";
+     let newShortest = PGraph.allShortestPaths 's' 't' g in
+     pretty_print_all_shortest_paths newShortest;
+     Printf.printf "\n";
+     Printf.printf "flow_maximal : %i\n" (PGraph.get_max_flow 't' g)
+*)
+
+(* graph exo *)
+
+(* test 1 itération*)
 let _ =
-  let shortest = PGraph.allShortestPaths 's' 't' goal_graph in
+  Printf.printf "\n\ntest graph graph_file \n";
+  let shortest = PGraph.allShortestPaths 's' 't' graph_file in
   Printf.printf "\nBefore applying bottleneck\n";
   pretty_print_all_shortest_paths shortest;
+  Printf.printf "\n";
   let g =
     PGraph.SetOfPath.fold
-      (fun path acc -> PGraph.apply_bottleneck (List.rev path) acc)
-      shortest goal_graph
+      (fun path acc ->
+        (* printing list*)
+        PGraph.apply_bottleneck (List.rev path) acc)
+      shortest graph_file
   in
-  Printf.printf "\nAfter applying bottleneck\n";
+  Printf.printf "\n 1 iteration \n";
   let newShortest = PGraph.allShortestPaths 's' 't' g in
-  pretty_print_all_shortest_paths newShortest
+  pretty_print_all_shortest_paths newShortest;
+  Printf.printf "\n";
+  Printf.printf "flow_maximal : %i" (PGraph.get_max_flow 't' g)
+
+(*test dinic *)
+let _ =
+  Printf.printf "\n\ntest dinic graph_file \n";
+  let g = PGraph.dinic 's' 't' (PGraph.clean_graph 's' 't' graph_file) in
+  Printf.printf "\n";
+  PGraph.NodeMap.iter
+    (fun node succs ->
+      PGraph.NodeMap.iter
+        (fun node2 (min, max) ->
+          Printf.printf "%c -> %c : (%i,%i)\n" node node2 min max)
+        succs)
+    g;
+  Printf.printf "\n";
+  Printf.printf "flow_maximal : %i" (PGraph.get_max_flow 't' g)
+
+(*
+   (* test clean_set
+      semble fonctionner *)
+   let _ =
+     Printf.printf "\n\ntest clean_set \n";
+     let shortest = PGraph.allShortestPaths 's' 't' goal_graph in
+     Printf.printf "\nBefore \n";
+     pretty_print_all_shortest_paths shortest;
+     let newSet = PGraph.clean_set shortest [ 'h'; 'a' ] in
+     Printf.printf "\nAfter \n";
+     pretty_print_all_shortest_paths newSet
+
+   (*test chemin qui n'existe pas *)
+   let _ =
+     Printf.printf "\n\ntest chemin qui n'existe pas \n";
+     let shortest = PGraph.allShortestPaths 't' 's' goal_graph in
+     Printf.printf "\n\n";
+     pretty_print_all_shortest_paths shortest *)
