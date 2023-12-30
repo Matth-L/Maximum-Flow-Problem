@@ -409,56 +409,6 @@ let _ =
   Printf.printf "all_shortest_paths: \n";
   pretty_print_all_shortest_paths normallySameSet
 
-(******************** TEST naive phase 2************************)
-
-(*
-  semble fonctionner 
-             |-----> f
-             3       5
-             |       |
-             |       v
-     a -1--> b --7-> c <---
-     |               ^    |
-     |--6--> d       4    |
-     |               |    6
-     |---8-> e -2--> g    |
-             |            |
-             |------------|
-
-     graph test
-*)
-
-let _ =
-  (* set de Test *)
-  let graph =
-    PGraph.list_to_graph_no_pond
-      [
-        ('a', 'b');
-        ('a', 'd');
-        ('a', 'e');
-        ('b', 'c');
-        ('e', 'g');
-        ('b', 'f');
-        ('g', 'c');
-        ('f', 'c');
-        ('e', 'c');
-      ]
-  in
-  let graphTarget = PGraph.all_path 'a' 'c' graph in
-  let finalSet = PGraph.ponderation_of_set graphTarget in
-  let longestSet = PGraph.longestPath finalSet in
-
-  (*printing the whole set *)
-  Printf.printf "printing the whole set : \n";
-  PGraph.SetOfPhase2.iter
-    (fun (n, path) ->
-      let _ = Printf.printf "pond : %i \n" n in
-      List.iter
-        (fun (node, min, max) -> Printf.printf "<-- [%c,(%i ;%i)]" node min max)
-        path;
-      Printf.printf "\n")
-    longestSet
-
 (******************** TEST dinic ************************)
 
 (*test nombre de niveau*)

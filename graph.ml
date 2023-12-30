@@ -31,45 +31,46 @@ exception EmptyMap
    (E)
 
    {
-    A : {B: 2}
-    B : {C: 2};{E: 4}
+    A : {B: (0,2)}
+    B : {C: (0,2)};{E: (0,4)}
     C : {}
     D : {}
-    E : {D: 1}
+    E : {D: (0,1)}
     
-    Les nodes sont de la forme int NodeMap.t car des élèves ne sont pas divisible 
+    Les nodes sont de la forme (int*int) NodeMap.t car des élèves 
+    ne sont pas divisible 
    }
 *)
 
 module type S = sig
   module NodeMap : Map.S
 
-  (* pour l'ensemble de la liste des chemins*)
+  (** pour stocker les différents chemins utilisé,
+      on va utiliser des ensembles, cela est plus pratique
+      et permet d'avoir accès à des fonctions utiles (ex : fold) *)
   module SetOfPath : Set.S
 
+  (** le type du graph (voir plus haut schéma) *)
   type graph
+
+  (** le type des noeuds *)
   type node
 
   (** Le graph vide *)
   val empty : graph
 
-  (**********************  LIST TO GRAPH FUNCTION *****************************)
+  (**********************  SUCCS FUNCTION ***********************************)
 
   (**
-  @requires une node list
-  @ensures un graph ou il y a des edges entre plusieurs noeuds.
-  @raises rien 
-  *)
-  val list_to_graph : (node * 'a * 'b * node) list -> graph
+    @requires Rien
+    @ensures un ensemble correspondant au successeur du noeud 
+    passé en paramètre, si le noeud n'a pas de successeur, 
+    on retourne un ensemble vide
+    @raises rien
+    *)
+  val succs : node -> 'a NodeMap.t NodeMap.t -> 'a NodeMap.t
 
-  (**
-  @requires une node list
-  @ensures un graph ou il y a des edges entre plusieurs noeuds.
-  @raises rien
-  *)
-  val list_to_graph_no_pond : (node * node) list -> graph
-
-  (**********************  BOOLEAN FUNCTION ***********************************)
+  (************************  BOOL FUNCTION ***********************************)
 
   (**
   @requires Rien 
@@ -78,15 +79,36 @@ module type S = sig
   *)
   val is_empty : graph -> bool
 
-  (**********************  SUCCS FUNCTION ***********************************)
+  (**
+  @requires Rien 
+  @ensures un booléen indiquant si le noeud est dans le graph
+  @raises Rien
+  *)
+  val mem_node : node -> 'a NodeMap.t -> bool
 
   (**
-  @requires le noeud node appartient au graph 
-  @ensures un ensemble correspondant au successeur du noeud 
-  passé en paramètre, si le noeud n'a pas de successeur, on retourne un ensemble vide
-  @raises rien
+  @requires Rien
+  @ensures un booléen indiquant si n1 ---------> n2
+  @raises rien 
+  @warning si n1 n'existe pas dans le graph, on retourne false
   *)
-  val succs : node -> graph -> 'a NodeMap.t
+  val mem_edge : node -> node -> 'a NodeMap.t NodeMap.t -> bool
+
+  (**
+  @requires Rien
+  @ensures un booléen indiquant si node est un successeurs d'un 
+  élement dans le graph
+  @raises rien 
+  *)
+  val mem_exist_as_successor : node -> 'a NodeMap.t NodeMap.t -> bool
+
+  (**
+  @requires un noeud et un ensemble de chemin
+  @ensures un booléen indiquant si le noeud est dans l'ensemble
+  @raises Rien
+  @brief dans set_of_path les listes sont de la forme (n,min,max)
+  *)
+  val mem_set_of_path : node -> (node * 'a * 'b) list -> bool
 
   (**********************  FOLD FUNCTION ***********************************)
 
@@ -108,29 +130,6 @@ module type S = sig
   @raises Rien
   *)
   val fold_succs : (node -> 'a * 'b -> 'c -> 'c) -> graph -> 'c -> 'c
-
-  (**********************  MEM FUNCTION ***********************************)
-
-  (**
-  @requires Rien 
-  @ensures un booléen indiquant si le noeud est dans le graph
-  @raises Rien
-  *)
-  val mem_node : node -> graph -> bool
-
-  (**
-  @requires que n1 appartiennent au graph 
-  @ensures un booléen indiquant si n1 ---------> n2
-  @raises rien 
-  *)
-  val mem_edge : node -> node -> graph -> bool
-
-  (**
-  @requires un noeud 
-  @ensures un booléen indiquant si node est un successeurs d'un élement dans le graph
-  @raises rien 
-  *)
-  val mem_exist_as_successor : node -> graph -> bool
 
   (**********************  ADDING FUNCTION ***********************************)
 
@@ -250,6 +249,22 @@ module type S = sig
   @raises Rien
   *)
   val add_paths_to_set_while_possible : SetOfPath.t -> graph -> SetOfPath.t
+
+  (********************  LIST_TO_GRAPH FUNCTION ******************************)
+
+  (**
+  @requires une node list
+  @ensures un graph ou il y a des edges entre plusieurs noeuds.
+  @raises rien 
+  *)
+  val list_to_graph : (node * 'a * 'b * node) list -> graph
+
+  (**
+  @requires une node list
+  @ensures un graph ou il y a des edges entre plusieurs noeuds.
+  @raises rien
+  *)
+  val list_to_graph_no_pond : (node * node) list -> graph
 end
 
 (************************************************************************)
@@ -264,68 +279,28 @@ module Make (X : Map.OrderedType) = struct
   module NodeMap = Map.Make (X)
   module NodeSet = Set.Make (X)
 
-  type node = NodeMap.key
+  type node = X.t
+
   type graph = (int * int) NodeMap.t NodeMap.t
 
-  (*
-    pour stocker les chemins, on va utiliser des ensembles,
-    cela permet de ne pas se faire avoir par l'ordre et de fold
-    sans prendre en compte du sens dans lequel on lit
-  *)
   module SetOfPath = Set.Make (struct
     type t = (node * int * int) list
 
     let compare = compare
   end)
 
-  module SetOfPhase2 = Set.Make (struct
-    type t = int * (node * int * int) list
-
-    let compare = compare
-  end)
-
   let empty = NodeMap.empty
-  let is_empty g = NodeMap.is_empty g
 
-  (***********  let ***********  SUCCS FUNCTION ***********************************)
+  (***********  let ***********  SUCCS FUNCTION *******************************)
 
   let succs n g =
     (*si le noeud appartient au graph,
       on retourne la clé , sinon on retourne rien*)
     try NodeMap.find n g with Not_found -> NodeMap.empty
 
-  (**********************  FOLD FUNCTION ***********************************)
+  (************************  BOOL FUNCTION ************************************)
 
-  (*
-  le fold n'est fait que sur les clé, donc les noeuds (from)
-  *)
-  let fold_node f g v0 =
-    NodeMap.fold (fun currNode _ acc -> f currNode acc) g v0
-
-  (*
-     Lors du fold, pour chaque clé, on va faire un fold sur les successeurs
-     a --> b 
-     b --> c
-     c --> a 
-     a --> c
-     { a : {
-       b: 1 ; 
-       c: 1
-       }
-       b : {c: 1}
-       c : {a: 1}
-     }
-     l'un des élement qui recevra la fonction f sera b et c du noeud a par ex
-     *)
-  let fold_succs f g acc =
-    NodeMap.fold
-      (fun noeud successeur acc1 ->
-        NodeMap.fold
-          (fun noeudSuccs (min, max) acc2 -> f noeudSuccs (min, max) acc2)
-          successeur acc1)
-      g acc
-
-  (********************** MEM FUNCTION ***********************************)
+  let is_empty g = NodeMap.is_empty g
 
   let mem_node n g = NodeMap.mem n g
 
@@ -343,10 +318,39 @@ module Make (X : Map.OrderedType) = struct
     else
       false
 
-  (* dans set_of_path les listes sont de la forme (n,min,max),
-     il faut donc un moyen de savoir quand n est dedans*)
   let mem_set_of_path n1 l =
     List.fold_left (fun acc (n, min, max) -> acc || n = n1) false l
+
+  (**********************  FOLD FUNCTION ***********************************)
+
+  (*
+     le fold n'est fait que sur les clé, donc les noeuds (from)
+  *)
+  let fold_node f g v0 =
+    NodeMap.fold (fun currNode _ acc -> f currNode acc) g v0
+
+  (*
+     Lors du fold, pour chaque clé, on va faire un fold sur les successeurs
+      a --> b
+      b --> c
+      c --> a
+      a --> c
+      { a : {
+        b: 1 ;
+        c: 1
+        }
+        b : {c: 1}
+        c : {a: 1}
+      }
+      l'un des élement qui recevra la fonction f sera b et c du noeud a par ex
+  *)
+  let fold_succs f g acc =
+    NodeMap.fold
+      (fun noeud successeur acc1 ->
+        NodeMap.fold
+          (fun noeudSuccs (min, max) acc2 -> f noeudSuccs (min, max) acc2)
+          successeur acc1 )
+      g acc
 
   (**********************  ADDING FUNCTION ***********************************)
 
@@ -407,8 +411,7 @@ module Make (X : Map.OrderedType) = struct
          et on ajoute cette nouvelle map à la clé , ce qui
          met donc à jour ses successeurs*)
       NodeMap.fold
-        (fun noeud valeur acc ->
-          NodeMap.add noeud (NodeMap.remove n valeur) acc)
+        (fun noeud valeur acc -> NodeMap.add noeud (NodeMap.remove n valeur) acc)
         g NodeMap.empty
     in
     NodeMap.remove n graph_without_successor_to_n
@@ -425,7 +428,7 @@ module Make (X : Map.OrderedType) = struct
           if node = n then
             acc + 1
           else
-            acc)
+            acc )
         g 0
 
   (* nombre d'arc qui quitte le noeud, c'est donc le nombre de successeurs*)
@@ -471,20 +474,18 @@ module Make (X : Map.OrderedType) = struct
   (******************** Phase 1 ******************************)
   (***********************************************************)
 
-  (**
+  (** BUT : partir de a , trouver l'ensemble des plus court chemins
 
-  BUT : partir de a , trouver l'ensemble des plus court chemins
-
-              |-----> f
-              |
+      |-----> f
+      |
       a ----> b ----> c
       |               ^
       |-----> d       |
       |               |
       |-----> e ----> g
-      
+
       1)
-      
+
       [
         
         [(b,1)]
@@ -495,15 +496,15 @@ module Make (X : Map.OrderedType) = struct
       2)
       focus sur [(b,1)]
       [b,1] =>
-      
+
       [
         
         [(c,1);(b,1)]
         [(f,1);(b,1)]
         
         ]
-        
-        puis on remplace (b,1) par le nouveau chemin
+
+      puis on remplace (b,1) par le nouveau chemin
       [
         
         [(c,1);(b,1)]
@@ -512,17 +513,17 @@ module Make (X : Map.OrderedType) = struct
         [(e,1)]
         
         ]
-        **)
+      **)
 
   (********************  Ensemble chemin *********************************)
 
   (*
-  ex ensemble : 
+     ex ensemble : 
  {
   [(a,1);(b,1)]
   [(d,1)]
   [(e,1)]
- }    
+ }
   *)
 
   (* fonction qui ajoute tous les chemins dans un ensemble de chemin *)
@@ -550,8 +551,8 @@ module Make (X : Map.OrderedType) = struct
               in
               SetOfPath.add newPath acc2
             else
-              acc2)
-          succs_of_n acc1)
+              acc2 )
+          succs_of_n acc1 )
       ensInit ensInit
 
   (* fonction qui tant que les élément dans le SetOfPath ont des successerus, appel add_paths_to_set *)
@@ -568,18 +569,16 @@ module Make (X : Map.OrderedType) = struct
   (* maintenant, il suffit de prendre un noeud de départ et d'appliquer la fonction pour avoir l'ensemble avec tous les chemins allant de start vers goal *)
   let all_path start goal g =
     (* on transforme le noeud en ensemble*)
-    let startingSet = SetOfPath.singleton [ (start, 0, 0) ] in
-
+    let startingSet = SetOfPath.singleton [(start, 0, 0)] in
     (* on applique la fonction, on a donc tous les chemins possible du graph*)
     let allSet = add_paths_to_set_while_possible startingSet g in
-
     (* il suffit de remove ceux qui ne commence pas par goal ,
        le plus récent est la tête de la liste il suffit de regarder
        la tête *)
     SetOfPath.filter
       (fun listOfPath ->
         let n, min, max = List.hd listOfPath in
-        n = goal)
+        n = goal )
       allSet
 
   (* fonction qui trouve le plus petit chemin à partir d'un ensemble*)
@@ -591,7 +590,7 @@ module Make (X : Map.OrderedType) = struct
         if List.length listOfPath < acc then
           List.length listOfPath
         else
-          acc)
+          acc )
       set
       (* on commence en prenant la taille du premier set*)
       (List.length (SetOfPath.choose set))
@@ -605,7 +604,7 @@ module Make (X : Map.OrderedType) = struct
         (fun listOfPath -> List.length listOfPath = shortest)
         allPath
     with Not_found ->
-      Printf.printf "plus de chemin entre start et goal\n";
+      Printf.printf "plus de chemin entre start et goal\n" ;
       SetOfPath.empty
 
   (***********************************************************)
@@ -613,64 +612,6 @@ module Make (X : Map.OrderedType) = struct
   (******************** phase 2 ******************************)
   (***********************************************************)
   (***********************************************************)
-
-  (***********************************************************)
-  (******************** V0 : naive ***************************)
-  (***********************************************************)
-
-  (* but : la fonction allPath nous donne un ensemble de chemin ou la pondération est marqué
-     pour chaque chemin, on va donc prendre cette ensemble, transformé chaque liste d'ensemble en couple
-     càd que si l'ensemble était
-     couteux car fold sur chaque élement
-     {
-       [chemin A]
-       [chemin B]
-       [chemin C]
-       [chemin D]
-       }
-       =>
-       {
-         (sum_ponderation_A , [chemin A])
-         (sum_ponderation_B , [chemin B])
-         (sum_ponderation_C , [chemin C])
-         (sum_ponderation_D , [chemin D])
-         }
-  *)
-
-  (**
-  @requires une liste de chemin sous la forme [(a,1) ; (b,2)] ... 
-  @ensures  de calculer le nombre total de la pondération d'un trajet 
-  @raises rien
-  *)
-  let total_pond l = List.fold_right (fun (n, min, max) acc -> acc + max) l 0
-
-  (**
-  prend un ensemble de chemin et le transforme en ensemble ou chaque élément est un couple de la forme
-  (sommePonderationChemin,[chemin])
-  @requires un ensemble de chemin
-  @ensures un ensemble de chemin avec la somme des pondérations facilement accessible
-  @raises rien 
-  *)
-  let ponderation_of_set ens =
-    SetOfPath.fold
-      (fun listOfPath acc ->
-        SetOfPhase2.add (total_pond listOfPath, listOfPath) acc)
-      ens SetOfPhase2.empty
-
-  (*prend le plus chemin avec la plus grosse pondération *)
-  let sizeLongestPath ens =
-    SetOfPhase2.fold
-      (fun (pond, l) acc ->
-        if pond > acc then
-          pond
-        else
-          acc)
-      ens 0
-
-  (* filtre qui donnne tous les chemins qui ont la taille supérieur *)
-  let longestPath ens =
-    let sizeOfLongest = sizeLongestPath ens in
-    SetOfPhase2.filter (fun (n, l) -> n = sizeOfLongest) ens
 
   (***********************************************************)
   (******************** V1 : dinic ***************************)
@@ -703,7 +644,7 @@ module Make (X : Map.OrderedType) = struct
         (fun listOfPath acc ->
           List.fold_right
             (fun (node, min, max) acc -> NodeSet.add node acc)
-            listOfPath acc)
+            listOfPath acc )
         set_shortest_path NodeSet.empty
     in
     NodeSet.diff set_of_all_node set_of_node_shortest_path
@@ -712,10 +653,10 @@ module Make (X : Map.OrderedType) = struct
 
      Pour chaque chemin dans l'ensemble des chemins les plus courts
      - Parcourir de source à destination, en utilisant uniquement les arêtes valides
-     si on atteint la destination, on met le poids de toutes les arêtes par lequel on
-     est passé à jour, c'est à dire au flot bloquant (puis blacklist les noeuds empruntés)
+       si on atteint la destination, on met le poids de toutes les arêtes par lequel on
+       est passé à jour, c'est à dire au flot bloquant (puis blacklist les noeuds empruntés)
      - On s'arrête quand on ne peut plus atteindre la destination par des arêtes
-     qui n'ont pas déja été utilisé (regarder si le noeud est dans la blacklist)
+       qui n'ont pas déja été utilisé (regarder si le noeud est dans la blacklist)
      - On recommence l'algorithme seulement sur les arêtes ou false
   *)
 
@@ -739,7 +680,7 @@ module Make (X : Map.OrderedType) = struct
         else if max - min < acc then
           max - min
         else
-          acc)
+          acc )
       (get3rd (List.hd l))
       l
 
@@ -751,7 +692,8 @@ module Make (X : Map.OrderedType) = struct
   let there_is_blocking_flow list_of_path g =
     let rec aux l =
       match l with
-      | [] | [ _ ] -> false (* on a besoin de 2 noeud pour avoir le flot*)
+      | [] | [_] ->
+          false (* on a besoin de 2 noeud pour avoir le flot*)
       (* il faut regarder dans le graph car les informations des liste ne sont peut être plus à jour *)
       | (n1, min1, max1) :: (n2, min2, max2) :: t ->
           let min, max = get_flow (n1, n2) g in
@@ -788,7 +730,7 @@ module Make (X : Map.OrderedType) = struct
     else
       (* il n'y a aucun flot bloquant la ou on se situe*)
       let bneck = get_bottleneck list_of_path in
-      Printf.printf "bottleneck : %d\n" bneck;
+      Printf.printf "bottleneck : %d\n" bneck ;
       (* on applique le bottleneck à toutes les arêtes *)
       let rec aux l graphAux =
         match l with
@@ -798,7 +740,8 @@ module Make (X : Map.OrderedType) = struct
             let newG = change_flow n1 n2 newMinMax graphAux in
             (* on applique aux élements d'après *)
             aux ((n2, min2, max2) :: t) newG
-        | [] | [ _ ] -> graphAux
+        | [] | [_] ->
+            graphAux
       in
       aux list_of_path g
 
@@ -813,8 +756,8 @@ module Make (X : Map.OrderedType) = struct
             if min = max then
               noeudStart :: acc1
             else
-              acc1)
-          succs acc)
+              acc1 )
+          succs acc )
       g []
 
   let get_max_flow goal g =
@@ -825,8 +768,8 @@ module Make (X : Map.OrderedType) = struct
             if noeudEnd = goal then
               acc1 + min
             else
-              acc1)
-          succs acc)
+              acc1 )
+          succs acc )
       g 0
 
   (* le problème est que l'on fold et donc on rappel dinic avant même qu'il finisse de lire la première liste des ensembles*)

@@ -1,10 +1,8 @@
 # https://ocaml.org/p/ocamlformat/latest/doc/manpage_ocamlformat.html
 
-margin = 80 
-line-endings = lf
 wrap-comments=false
-profile = conventional
-break-cases = toplevel 
+profile = ocamlformat
+function-indent-nested = always
+parens-tuple = always
 if-then-else = vertical
-disambiguate-non-breaking-match=true 
 doc-comments=before
