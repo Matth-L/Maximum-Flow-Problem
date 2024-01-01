@@ -45,6 +45,8 @@ exception EmptyMap
 module type S = sig
   module NodeMap : Map.S
 
+  module NodeSet : Set.S
+
   (** pour stocker les différents chemins utilisé,
       on va utiliser des ensembles, cela est plus pratique
       et permet d'avoir accès à des fonctions utiles (ex : fold) *)
@@ -349,12 +351,50 @@ module type S = sig
   (*****************************  dinic ***************************************)
   (****************************************************************************)
 
+  (**
+  @requires un tuple de 3 éléments
+  @ensures le 3ème élément du tuple
+  @raises Rien
+  *)
+  val get3rd : 'a * 'b * 'c -> 'c
+
   (*********************** cleaning function **********************************)
 
   (* ces fonctions n'ont finalement pas été utilisé.
      Il n'est pas nécessaire de refaire le graph à chaque fois*)
 
-  (* https://www.youtube.com/watch?v=M6cm8UeeziI *)
+  (**
+  @requires un noeud de départ , un noeud d'arrivé, un graph
+  @ensures un ensemble de noeud qui ne font pas partie des plus court chemin
+  @raises Rien
+  *)
+  val blacklisted_node :
+    node -> node -> (int * int) NodeMap.t NodeMap.t -> NodeSet.t
+
+  (**
+  @requires un noeud de départ , un noeud d'arrivé, un graph
+  @ensures un graph sans les noeuds qui ne font pas partie des plus court chemin
+  @raises Rien
+  *)
+  val clean_graph :
+       node
+    -> node
+    -> (int * int) NodeMap.t NodeMap.t
+    -> (int * int) NodeMap.t NodeMap.t
+
+  (**
+  @requires un noeud et un ensemble de chemin
+  @ensures un ensemble de chemin sans le noeud
+  @raises Rien
+  *)
+  val clean_set_from_node : node -> SetOfPath.t -> SetOfPath.t
+
+  (**
+  @requires un ensemble de chemin et une liste de noeud
+  @ensures un ensemble de chemin sans les noeuds de la liste
+  @raises Rien
+  *)
+  val clean_set : SetOfPath.t -> node list -> SetOfPath.t
 end
 
 (************************************************************************)
@@ -717,40 +757,20 @@ module Make (X : Map.OrderedType) = struct
   (*****************************  dinic ***************************************)
   (****************************************************************************)
 
-  (*les niveaux se font uniquement à partir des chemins les plus courts
-    vers le puits, ils font donc faire la liste des noeuds qui n'en font
-    pas partie,
-    à la fin on a un ensemble de tous les noeuds qui ne font pas partie des plus courts chemins*)
-  let blacklisted_node start goal g =
-    (* on créer un ensemble qui contient tous les noeuds du graph *)
-    let set_of_all_node =
-      fold_node (fun node acc -> NodeSet.add node acc) g NodeSet.empty
-    in
-    let set_shortest_path = all_shortest_paths start goal g in
-    (* on crée un ensemble qui contient tous les noeuds du plus petit*)
-    let set_of_node_shortest_path =
-      SetOfPath.fold
-        (fun listOfPath acc ->
-          List.fold_right
-            (fun (node, min, max) acc -> NodeSet.add node acc)
-            listOfPath acc )
-        set_shortest_path NodeSet.empty
-    in
-    NodeSet.diff set_of_all_node set_of_node_shortest_path
-
-  (* but
+  (* but :
 
      Pour chaque chemin dans l'ensemble des chemins les plus courts
-     - Parcourir de source à destination, en utilisant uniquement les arêtes valides
-       si on atteint la destination, on met le poids de toutes les arêtes par lequel on
-       est passé à jour, c'est à dire au flot bloquant (puis blacklist les noeuds empruntés)
-     - On s'arrête quand on ne peut plus atteindre la destination par des arêtes
-       qui n'ont pas déja été utilisé (regarder si le noeud est dans la blacklist)
-     - On recommence l'algorithme seulement sur les arêtes ou false
+     - Parcourir de source à destination, en utilisant uniquement
+       les arêtes valides ; si on atteint la destination,
+       on met le poids de toutes les arêtes par lequel on est passé à jour,
+       c'est à dire au flot bloquant
+       (puis blacklist les noeuds empruntés saturé)
+     - On s'arrête quand on ne peut plus atteindre la destination
+       par des arêtes qui n'ont pas déja été utilisé
+       (regarder si le noeud est dans la blacklist)
+     - On recommence l'algorithme seulement sur les arêtes qui n'ont pas été
+       saturé
   *)
-
-  (* maintenant, il faut prendre un chemin, qu va de start à goal
-     prendre le minimum de flow disponible pdt se trajet, mettre à jour le graph, et retourner le graph, si le flot min est plus petit que ce que l'on cherche à inscrire, une fois qu'une *)
 
   let get3rd (n1, n2, n3) = n3
 
@@ -869,9 +889,30 @@ module Make (X : Map.OrderedType) = struct
       dinic start goal g
 
   (*********************** cleaning function **********************************)
-  (* le problème est que l'on fold et donc on rappel dinic avant même qu'il finisse de lire la première liste des ensembles*)
 
-  (* fonction qui prend un graph et enlève les noeuds qui ne font pas partie du plus court chemin  pour avoir un graph de niveau  correct *)
+  (*les niveaux se font uniquement à partir des chemins les plus courts
+    vers le puits, à la fin on a un ensemble de tous les noeuds
+    qui ne font pas partie des plus courts chemins*)
+
+  let blacklisted_node start goal g =
+    (* on créer un ensemble qui contient tous les noeuds du graph *)
+    let set_of_all_node =
+      fold_node (fun node acc -> NodeSet.add node acc) g NodeSet.empty
+    in
+    let set_shortest_path = all_shortest_paths start goal g in
+    (* on crée un ensemble qui contient tous les noeuds du plus petit*)
+    let set_of_node_shortest_path =
+      SetOfPath.fold
+        (fun listOfPath acc ->
+          List.fold_right
+            (fun (node, min, max) acc -> NodeSet.add node acc)
+            listOfPath acc )
+        set_shortest_path NodeSet.empty
+    in
+    NodeSet.diff set_of_all_node set_of_node_shortest_path
+
+  (* fonction qui prend un graph et enlève les noeuds
+     qui ne font pas partie du plus court chemin *)
   let clean_graph start goal g =
     let blacklisted = blacklisted_node start goal g in
     NodeSet.fold (fun node acc -> remove_node node acc) blacklisted g
@@ -880,7 +921,7 @@ module Make (X : Map.OrderedType) = struct
     SetOfPath.filter (fun listOfPath -> not (mem_set_of_path n listOfPath)) ens
 
   (* fonction qui prend un ensemble de chemin, une liste de noeud
-     et supprime tous les chemins dont le noeud appartient*)
+     et supprime tous les chemins dont le noeud appartient *)
   let clean_set s l =
     List.fold_left (fun acc noeud -> clean_set_from_node noeud acc) s l
 end
