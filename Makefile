@@ -4,7 +4,7 @@ TARGET = test phase1 phase2
 
 .PHONY = all clean tests
 
-test : graph.cmo testGraph.cmo
+test :  graph.cmo testGraph.cmo
 	$(OCAMLFLAGS)  graph.cmo testGraph.cmo -o test
 
 phase1 : graph.cmo analyse.cmi analyse.cmo main.cmo
@@ -21,6 +21,9 @@ analyse.cmi : analyse.mli
 
 graph.cmo : graph.ml
 	$(OCAMLFLAGS) -c graph.ml
+
+# graph.cmi : graph.mli
+# 	$(OCAMLFLAGS) -c graph.mli
 
 testGraph.cmo : testGraph.ml
 	$(OCAMLFLAGS) -c testGraph.ml

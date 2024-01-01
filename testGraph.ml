@@ -7,7 +7,7 @@ module CharSet = Set.Make (Char)
    |--------------|
 *)
 let small_graph_1 =
-  PGraph.list_to_graph_no_pond [ ('a', 'b'); ('b', 'c'); ('c', 'a') ]
+  PGraph.list_to_graph_no_pond [('a', 'b'); ('b', 'c'); ('c', 'a')]
 
 (*
    a ---> b ----> c
@@ -15,7 +15,7 @@ let small_graph_1 =
    |--------------|
 *)
 let small_graph_2 =
-  PGraph.list_to_graph_no_pond [ ('a', 'b'); ('a', 'c'); ('b', 'c') ]
+  PGraph.list_to_graph_no_pond [('a', 'b'); ('a', 'c'); ('b', 'c')]
 
 (*
   semble fonctionner 
@@ -36,52 +36,46 @@ let small_graph_2 =
 
 let big_graph =
   PGraph.list_to_graph_no_pond
-    [
-      ('a', 'b');
-      ('a', 'd');
-      ('a', 'e');
-      ('b', 'c');
-      ('e', 'g');
-      ('b', 'f');
-      ('g', 'c');
-      ('f', 'c');
-      ('e', 'c');
-    ]
+    [ ('a', 'b')
+    ; ('a', 'd')
+    ; ('a', 'e')
+    ; ('b', 'c')
+    ; ('e', 'g')
+    ; ('b', 'f')
+    ; ('g', 'c')
+    ; ('f', 'c')
+    ; ('e', 'c') ]
 
 (*graph de la vidéo*)
 let goal_graph =
   PGraph.list_to_graph
-    [
-      ('s', 0, 5, 'a');
-      ('a', 0, 10, 'b');
-      ('b', 0, 10, 'c');
-      ('c', 0, 5, 't');
-      ('s', 0, 10, 'd');
-      ('d', 0, 20, 'e');
-      ('e', 0, 30, 'f');
-      ('f', 0, 15, 't');
-      ('s', 0, 15, 'g');
-      ('g', 0, 25, 'h');
-      ('h', 0, 20, 'f');
-      ('h', 0, 10, 'i');
-      ('i', 0, 10, 't');
-    ]
+    [ ('s', 0, 5, 'a')
+    ; ('a', 0, 10, 'b')
+    ; ('b', 0, 10, 'c')
+    ; ('c', 0, 5, 't')
+    ; ('s', 0, 10, 'd')
+    ; ('d', 0, 20, 'e')
+    ; ('e', 0, 30, 'f')
+    ; ('f', 0, 15, 't')
+    ; ('s', 0, 15, 'g')
+    ; ('g', 0, 25, 'h')
+    ; ('h', 0, 20, 'f')
+    ; ('h', 0, 10, 'i')
+    ; ('i', 0, 10, 't') ]
 
 let graph_file =
   PGraph.list_to_graph
-    [
-      ('s', 0, 10, 's');
-      ('s', 0, 10, 'a');
-      ('s', 0, 5, 'b');
-      ('b', 0, 7, 'e');
-      ('a', 0, 4, 'b');
-      ('a', 0, 3, 'c');
-      ('c', 0, 7, 't');
-      ('d', 0, 12, 't');
-      ('e', 0, 28, 't');
-    ]
+    [ ('s', 0, 10, 's')
+    ; ('s', 0, 10, 'a')
+    ; ('s', 0, 5, 'b')
+    ; ('b', 0, 7, 'e')
+    ; ('a', 0, 4, 'b')
+    ; ('a', 0, 3, 'c')
+    ; ('c', 0, 7, 't')
+    ; ('d', 0, 12, 't')
+    ; ('e', 0, 28, 't') ]
 
-let graph_a_b = PGraph.list_to_graph_no_pond [ ('a', 'b') ]
+let graph_a_b = PGraph.list_to_graph_no_pond [('a', 'b')]
 
 let prettyPrint test nameOfTest commentaire =
   if test then
@@ -90,18 +84,19 @@ let prettyPrint test nameOfTest commentaire =
     Printf.printf "%s %s : NOT OK \n" nameOfTest commentaire
 
 let pretty_print_all_shortest_paths setPath =
-  Printf.printf "all_shortest_paths: \n";
+  Printf.printf "all_shortest_paths: \n" ;
   PGraph.SetOfPath.iter
     (fun path ->
       match path with
-      | [] -> ()
+      | [] ->
+          ()
       | (first_node, min, max) :: rest_of_path ->
-          Printf.printf "Path: [%c,(%i ;%i)]" first_node min max;
+          Printf.printf "Path: [%c,(%i ;%i)]" first_node min max ;
           List.iter
             (fun (node, min, max) ->
-              Printf.printf " <-- [%c,(%i ;%i)]" node min max)
-            rest_of_path;
-          Printf.printf "\n")
+              Printf.printf " <-- [%c,(%i ;%i)]" node min max )
+            rest_of_path ;
+          Printf.printf "\n" )
     setPath
 
 (******************** is_empty ************************)
@@ -133,8 +128,7 @@ let test_fold_succs g =
   let numFold = PGraph.fold_succs (fun noeud ponderation acc -> acc + 1) g 0 in
   let numManualFold =
     PGraph.NodeMap.fold
-      (fun _ succs acc ->
-        PGraph.NodeMap.fold (fun _ _ acc -> acc + 1) succs acc)
+      (fun _ succs acc -> PGraph.NodeMap.fold (fun _ _ acc -> acc + 1) succs acc)
       g 0
   in
   prettyPrint (numFold = numManualFold) "test_fold_succs" "graph avec 4 arc"
@@ -184,7 +178,7 @@ let _ =
 
 (* test si le noeud b n'est pas un successeur*)
 let _ =
-  let graph = PGraph.list_to_graph_no_pond [ ('a', 'b'); ('a', 'c') ] in
+  let graph = PGraph.list_to_graph_no_pond [('a', 'b'); ('a', 'c')] in
   (* b n'est le successeur de personne donc faux*)
   let result = PGraph.mem_exist_as_successor 'b' graph in
   prettyPrint result "test_mem_exist_as_successor"
@@ -250,7 +244,7 @@ let _ =
 
 (* test qui vérifie que add_node 'a' 'a' ne crée pas une boucle*)
 let _ =
-  let graph = PGraph.list_to_graph_no_pond [ ('a', 'a') ] in
+  let graph = PGraph.list_to_graph_no_pond [('a', 'a')] in
   let graphWithCycle = PGraph.add_node 'a' 0 1 'a' graph in
   prettyPrint
     (PGraph.mem_edge 'a' 'a' graphWithCycle)
@@ -269,7 +263,7 @@ let _ =
 
 (*test si malgré une boucle , A n'a pas été supprimé *)
 let _ =
-  let graph = PGraph.list_to_graph_no_pond [ ('a', 'a') ] in
+  let graph = PGraph.list_to_graph_no_pond [('a', 'a')] in
   let g = PGraph.remove_edge 'a' 'a' graph in
   prettyPrint (PGraph.mem_node 'a' g) "test_remove_edge"
     "A existe toujours en enlevant sa boucle"
@@ -289,7 +283,7 @@ let _ =
 *)
 let _ =
   let graph =
-    PGraph.list_to_graph_no_pond [ ('a', 'b'); ('a', 'c'); ('c', 'b') ]
+    PGraph.list_to_graph_no_pond [('a', 'b'); ('a', 'c'); ('c', 'b')]
   in
   let addedCycle = PGraph.add_default_edge 'b' 'b' graph in
   let removedA = PGraph.remove_node 'a' addedCycle in
@@ -307,7 +301,7 @@ b -----> a ----
 c--------|
 *)
 let _ =
-  let graph = PGraph.list_to_graph_no_pond [ ('b', 'a'); ('c', 'a') ] in
+  let graph = PGraph.list_to_graph_no_pond [('b', 'a'); ('c', 'a')] in
   let graphWithCycle = PGraph.add_default_edge 'a' 'a' graph in
   let removedA = PGraph.remove_node 'a' graphWithCycle in
   let result = PGraph.mem_exist_as_successor 'a' removedA in
@@ -333,7 +327,7 @@ let _ =
 *)
 let _ =
   let graph =
-    PGraph.list_to_graph_no_pond [ ('a', 'b'); ('b', 'c'); ('a', 'c') ]
+    PGraph.list_to_graph_no_pond [('a', 'b'); ('b', 'c'); ('a', 'c')]
   in
   let final = PGraph.add_default_edge 'c' 'c' graph in
   let incoming_edge = PGraph.number_of_incoming_edge 'c' final in
@@ -360,7 +354,7 @@ let _ =
 *)
 let _ =
   let graph =
-    PGraph.list_to_graph_no_pond [ ('a', 'b'); ('b', 'c'); ('a', 'c') ]
+    PGraph.list_to_graph_no_pond [('a', 'b'); ('b', 'c'); ('a', 'c')]
   in
   let final = PGraph.add_default_edge 'c' 'c' graph in
   let outgoing_edge = PGraph.number_of_outgoing_edge 'a' final in
@@ -389,24 +383,22 @@ let _ =
   (* set de Test *)
   let graph =
     PGraph.list_to_graph_no_pond
-      [
-        ('a', 'b');
-        ('a', 'd');
-        ('a', 'e');
-        ('b', 'c');
-        ('e', 'g');
-        ('b', 'f');
-        ('g', 'c');
-        ('f', 'c');
-        ('e', 'c');
-      ]
+      [ ('a', 'b')
+      ; ('a', 'd')
+      ; ('a', 'e')
+      ; ('b', 'c')
+      ; ('e', 'g')
+      ; ('b', 'f')
+      ; ('g', 'c')
+      ; ('f', 'c')
+      ; ('e', 'c') ]
   in
   (* test avec des cycles*)
   let addedCycles = PGraph.add_default_edge 'b' 'b' graph in
   (*test bfs*)
-  let normallySameSet = PGraph.allShortestPaths 'a' 'c' addedCycles in
+  let normallySameSet = PGraph.all_shortest_paths 'a' 'c' addedCycles in
   (*printing the whole set *)
-  Printf.printf "all_shortest_paths: \n";
+  Printf.printf "all_shortest_paths: \n" ;
   pretty_print_all_shortest_paths normallySameSet
 
 (******************** TEST dinic ************************)
@@ -416,19 +408,17 @@ let _ =
 let _ =
   let graph =
     PGraph.list_to_graph_no_pond
-      [
-        ('a', 'b');
-        ('a', 'd');
-        ('a', 'e');
-        ('b', 'c');
-        ('e', 'g');
-        ('b', 'f');
-        ('g', 'c');
-        ('f', 'c');
-        ('e', 'c');
-      ]
+      [ ('a', 'b')
+      ; ('a', 'd')
+      ; ('a', 'e')
+      ; ('b', 'c')
+      ; ('e', 'g')
+      ; ('b', 'f')
+      ; ('g', 'c')
+      ; ('f', 'c')
+      ; ('e', 'c') ]
   in
-  let all_path = PGraph.allShortestPaths 'a' 'c' graph in
+  let all_path = PGraph.all_shortest_paths 'a' 'c' graph in
   (*compte le nombre de niveau*)
   let listLength =
     (* on enlève -2 car le puit et la source sont dedans *)
@@ -447,7 +437,7 @@ let _ =
 (* la 1e etape fonctionne
    let _ =
      Printf.printf "\n\ntest graph goal_graph \n";
-     let shortest = PGraph.allShortestPaths 's' 't' goal_graph in
+     let shortest = PGraph.all_shortest_paths 's' 't' goal_graph in
      Printf.printf "\nBefore applying bottleneck\n";
      pretty_print_all_shortest_paths shortest;
      let g =
@@ -456,7 +446,7 @@ let _ =
          shortest goal_graph
      in
      Printf.printf "\nAfter applying bottleneck\n";
-     let newShortest = PGraph.allShortestPaths 's' 't' g in
+     let newShortest = PGraph.all_shortest_paths 's' 't' g in
      pretty_print_all_shortest_paths newShortest;
      Printf.printf "\n";
      Printf.printf "flow_maximal : %i\n" (PGraph.get_max_flow 't' g)
@@ -466,37 +456,37 @@ let _ =
 
 (* test 1 itération*)
 let _ =
-  Printf.printf "\n\ntest graph graph_file \n";
-  let shortest = PGraph.allShortestPaths 's' 't' graph_file in
-  Printf.printf "\nBefore applying bottleneck\n";
-  pretty_print_all_shortest_paths shortest;
-  Printf.printf "\n";
+  Printf.printf "\n\ntest graph graph_file \n" ;
+  let shortest = PGraph.all_shortest_paths 's' 't' graph_file in
+  Printf.printf "\nBefore applying bottleneck\n" ;
+  pretty_print_all_shortest_paths shortest ;
+  Printf.printf "\n" ;
   let g =
     PGraph.SetOfPath.fold
       (fun path acc ->
         (* printing list*)
-        PGraph.apply_bottleneck (List.rev path) acc)
+        PGraph.apply_bottleneck (List.rev path) acc )
       shortest graph_file
   in
-  Printf.printf "\n 1 iteration \n";
-  let newShortest = PGraph.allShortestPaths 's' 't' g in
-  pretty_print_all_shortest_paths newShortest;
-  Printf.printf "\n";
+  Printf.printf "\n 1 iteration \n" ;
+  let newShortest = PGraph.all_shortest_paths 's' 't' g in
+  pretty_print_all_shortest_paths newShortest ;
+  Printf.printf "\n" ;
   Printf.printf "flow_maximal : %i" (PGraph.get_max_flow 't' g)
 
 (*test dinic *)
 let _ =
-  Printf.printf "\n\ntest dinic graph_file \n";
+  Printf.printf "\n\ntest dinic graph_file \n" ;
   let g = PGraph.dinic 's' 't' (PGraph.clean_graph 's' 't' graph_file) in
-  Printf.printf "\n";
+  Printf.printf "\n" ;
   PGraph.NodeMap.iter
     (fun node succs ->
       PGraph.NodeMap.iter
         (fun node2 (min, max) ->
-          Printf.printf "%c -> %c : (%i,%i)\n" node node2 min max)
-        succs)
-    g;
-  Printf.printf "\n";
+          Printf.printf "%c -> %c : (%i,%i)\n" node node2 min max )
+        succs )
+    g ;
+  Printf.printf "\n" ;
   Printf.printf "flow_maximal : %i" (PGraph.get_max_flow 't' g)
 
 (*
@@ -504,7 +494,7 @@ let _ =
       semble fonctionner *)
    let _ =
      Printf.printf "\n\ntest clean_set \n";
-     let shortest = PGraph.allShortestPaths 's' 't' goal_graph in
+     let shortest = PGraph.all_shortest_paths 's' 't' goal_graph in
      Printf.printf "\nBefore \n";
      pretty_print_all_shortest_paths shortest;
      let newSet = PGraph.clean_set shortest [ 'h'; 'a' ] in
@@ -514,6 +504,6 @@ let _ =
    (*test chemin qui n'existe pas *)
    let _ =
      Printf.printf "\n\ntest chemin qui n'existe pas \n";
-     let shortest = PGraph.allShortestPaths 't' 's' goal_graph in
+     let shortest = PGraph.all_shortest_paths 't' 's' goal_graph in
      Printf.printf "\n\n";
      pretty_print_all_shortest_paths shortest *)

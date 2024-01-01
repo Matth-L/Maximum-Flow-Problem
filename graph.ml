@@ -70,7 +70,7 @@ module type S = sig
     *)
   val succs : node -> 'a NodeMap.t NodeMap.t -> 'a NodeMap.t
 
-  (************************  BOOL FUNCTION ***********************************)
+  (************************** BOOL FUNCTION ***********************************)
 
   (**
   @requires Rien 
@@ -118,20 +118,21 @@ module type S = sig
   *)
 
   (**
-  @requires un graph
+  @requires un graph , une fonction qui traite les noeuds 
   @ensures un fold sur le graph
   @raises Rien
   *)
-  val fold_node : (node -> 'a -> 'a) -> graph -> 'a -> 'a
+  val fold_node : (node -> 'a -> 'a) -> 'b NodeMap.t -> 'a -> 'a
 
   (**
-  @requires un graph
+  @requires un graph, une fonction qui traite les successeurs
   @ensures un fold sur les successeurs du noeud
   @raises Rien
   *)
-  val fold_succs : (node -> 'a * 'b -> 'c -> 'c) -> graph -> 'c -> 'c
+  val fold_succs :
+    (node -> 'a * 'b -> 'c -> 'c) -> ('a * 'b) NodeMap.t NodeMap.t -> 'c -> 'c
 
-  (**********************  ADDING FUNCTION ***********************************)
+  (***********************  ADDING FUNCTION ***********************************)
 
   (**
   @requires un noeud
@@ -139,16 +140,21 @@ module type S = sig
   uniquement si le noeud n'existe pas déjà 
   @raises Rien
   *)
-  val add_lonely_node : node -> graph
+  val add_lonely_node : node -> 'a NodeMap.t NodeMap.t -> 'a NodeMap.t NodeMap.t
 
   (**
   @brief Fonction qui prend 2 noeud existant et qui lie le noeud A 
   au noeud B avec la pondération (min,max) 
   @requires les 2 noeuds existent 
   @ensures la création d'une arête entre les 2 noeuds
-  @raises failwith si les 2 noeuds n'existe pas 
+  @raises failwith si les 2 noeuds n'existe pas
   *)
-  val add_edge : node -> int -> int -> node -> graph -> graph
+  val add_edge :
+       node
+    -> 'a
+    -> 'b
+    -> ('a * 'b) NodeMap.t NodeMap.t
+    -> ('a * 'b) NodeMap.t NodeMap.t
 
   (**
   @brief Fonction qui prend 2 noeud, les crée si ils n'existent pas
@@ -157,58 +163,76 @@ module type S = sig
   @ensures La création de 2 noeuds et d'une arête entre les 2
   @raises Rien car les 2 noeuds sont crée, le test de add_edge
   n'est pas censé retourner une erreur
-  @example add_node (B) 2 (C) (G) 
-  B ----------- 2 ---------> C 
+  @example add_node B 0 2 C G 
+  B ----------- (0,2) ---------> C 
   *)
-  val add_node : node -> int -> int -> node -> graph -> graph
+  val add_node :
+       node
+    -> 'a
+    -> 'b
+    -> node
+    -> ('a * 'b) NodeMap.t NodeMap.t
+    -> ('a * 'b) NodeMap.t NodeMap.t
 
   (**
   @brief Même fonction que pour add_edge mais pour les graphe non pondéré 
   (toutes les pondérations sont à (0,1) )
   @requires les 2 noeuds existent 
   @ensures la création d'une arête entre les 2 noeuds
-  @raises failwith si les 2 noeuds n'existe pas
+  @raises failwith si les 2 noeuds n'existe pas (voir add_edge)
   *)
-  val add_default_edge : node -> graph
+  val add_default_edge :
+       node
+    -> node
+    -> (int * int) NodeMap.t NodeMap.t
+    -> (int * int) NodeMap.t NodeMap.t
 
   (**
   @brief Même fonction que add_node mais dans un cas non pondéré
   @requires que le noeud existe dans le graph 
   @ensures, l'ajout d'un noeud de pondération n , successeur du noeud
   donnée en paramètre 
-  @raises EmptyMap si le noeud en paramètre n'existe pas
+  @raises Rien
   *)
-  val add_default_node : node -> node -> graph -> graph
+  val add_default_node :
+       node
+    -> node
+    -> (int * int) NodeMap.t NodeMap.t
+    -> (int * int) NodeMap.t NodeMap.t
 
-  (**********************  REMOVE FUNCTION ********************************)
+  (**************************  REMOVE FUNCTION ********************************)
 
   (**
-  @requires les 2 nodeuds 
+  @requires les 2 noeuds 
   @ensures que l'arête 1 ------> 2 soit supprimer 
   @raises failwith si les 2 noeuds n'existe pas
   @warning si A ---> A , on supprime l'arête mais pas le noeud
   *)
-  val remove_edge : node -> node -> graph -> graph
+  val remove_edge :
+    node -> node -> 'a NodeMap.t NodeMap.t -> 'a NodeMap.t NodeMap.t
 
   (**
   @requires les 2 nodeuds 
   @ensures que l'arête 1 -----> 2 ET 2 --------> 1
   @raises failwith si les 2 noeuds n'existe pas (voir remove_edge)
   *)
-  val remove_edges : node -> node -> graph -> graph
+  val remove_edges :
+    node -> node -> 'a NodeMap.t NodeMap.t -> 'a NodeMap.t NodeMap.t
 
   (**
-  @requires le noeud à récupérer ainsi que le graph 
-  @ensures que le noeud soit bien retirer du graph ainsi que les noeuds qui pointent vers lui
+  @requires le noeud à supprimer 
+  @ensures que le noeud soit bien retirer du graph ainsi que les noeuds 
+  qui pointent vers lui.
+  Si le noeud n'existe pas, on retourne le graph inchangé
   @raises Rien
   *)
-  val remove_node : node -> graph -> graph
+  val remove_node : node -> 'a NodeMap.t NodeMap.t -> 'a NodeMap.t NodeMap.t
 
-  (**********************  COUNTING FUNCTION ********************************)
+  (************************* COUNTING FUNCTION ********************************)
 
   (**
-  @requires un noeud existant dans graph
-  @ensures le nombre d'arc
+  @requires un noeud existant 
+  @ensures le nombre d'arc pointant vers le noeud
   @raises le noeud n'est pas dans le graph
 
   a ----> b 
@@ -217,7 +241,7 @@ module type S = sig
   number_of_incoming_edge 'b' graph ===> 2 
 
   *)
-  val number_of_incoming_edge : node -> graph -> int
+  val number_of_incoming_edge : node -> ('a * 'b) NodeMap.t NodeMap.t -> int
 
   (**
   @requires un noeud existant dans graph
@@ -232,39 +256,105 @@ module type S = sig
   number_of_outgoing_edge 'a' graph ===> 3
 
   *)
-  val number_of_outgoing_edge : node -> graph -> int
+  val number_of_outgoing_edge : node -> 'a NodeMap.t NodeMap.t -> int
 
-  (*NON TESTER*)
-
-  (**
-  @requires un graph
-  @ensures un ensemble de chemin correspondant à tous les chemins possible dans le graphe au rang suivant 
-  @raises Rien
-  *)
-  val add_paths_to_set : SetOfPath.t -> graph -> SetOfPath.t
+  (**************************  GETTER FUNCTION ********************************)
 
   (**
-  @requires un graph
-  @ensures un ensemble de chemin correspondant à tous les chemins possible dans le graphe
-  @raises Rien
+  @requires 2 noeuds lié dans le graph
+  @ensures le flot entre les 2 noeuds
+  @raises les 2 noeuds ne sont pas lié dans le graph
   *)
-  val add_paths_to_set_while_possible : SetOfPath.t -> graph -> SetOfPath.t
+  val get_flow : node * node -> ('a * 'b) NodeMap.t NodeMap.t -> 'a * 'b
 
-  (********************  LIST_TO_GRAPH FUNCTION ******************************)
+  (********************* LIST_TO_GRAPH FUNCTION *******************************)
 
   (**
   @requires une node list
-  @ensures un graph ou il y a des edges entre plusieurs noeuds.
+  @ensures la création d'un graph en fonction d'une liste de noeud 
+  avec des pondérations
   @raises rien 
   *)
-  val list_to_graph : (node * 'a * 'b * node) list -> graph
+  val list_to_graph :
+    (node * 'a * 'b * node) list -> ('a * 'b) NodeMap.t NodeMap.t
 
   (**
   @requires une node list
-  @ensures un graph ou il y a des edges entre plusieurs noeuds.
+  @ensures la création d'un graph en fonction d'une liste de noeud 
+  sans pondération (car toutes les pondérations sont à (0,1))
   @raises rien
   *)
-  val list_to_graph_no_pond : (node * node) list -> graph
+  val list_to_graph_no_pond :
+    (node * node) list -> (int * int) NodeMap.t NodeMap.t
+
+  (****************************************************************************)
+  (****************************************************************************)
+  (***************************** Phase 1 **************************************)
+  (****************************************************************************)
+  (****************************************************************************)
+
+  (*********************** Ensemble de chemin *********************************)
+
+  (**
+  @requires un ensemble de chemin et un graph 
+  @ensures un ensemble de chemin correspondant à tous les chemins possible 
+  dans le graphe au rang suivant 
+  @raises Rien
+  @warning les chemins sont du sens du plus récent ajouté donc dans le sens 
+  inverse de lecture
+  @warning seulement les chemins qui ne sont pas saturé sont ajouté
+  *)
+  val add_paths_to_set :
+    SetOfPath.t -> (int * int) NodeMap.t NodeMap.t -> SetOfPath.t
+
+  (**
+  @requires un ensemble de chemin et un graph
+  @ensures un ensemble de chemin correspondant 
+  à tous les chemins possible dans le graphe
+  @raises Rien
+  *)
+  val add_paths_to_set_while_possible :
+    SetOfPath.t -> (int * int) NodeMap.t NodeMap.t -> SetOfPath.t
+
+  (**
+  @requires un noeud de départ , un noeud d'arrivé, un graph
+  @ensures un ensemble de chemin correspondant à tous les chemins possible
+  entre le noeud de départ et le noeud d'arrivé
+  @raises Rien
+  *)
+  val all_path : node -> node -> (int * int) NodeMap.t NodeMap.t -> SetOfPath.t
+
+  (**
+  @requires un ensemble de chemin
+  @ensures le plus petit chemin de l'ensemble
+  @raises Rien
+  *)
+  val shortest_set : SetOfPath.t -> int
+
+  (**
+  @requires un noeud de départ , un noeud d'arrivé, un graph
+  @ensures un ensemble de chemin correspondant à tous les chemins plus court
+  @raises Rien
+  *)
+  val all_shortest_paths :
+    node -> node -> (int * int) NodeMap.t NodeMap.t -> SetOfPath.t
+
+  (****************************************************************************)
+  (****************************************************************************)
+  (***************************** Phase 2 **************************************)
+  (****************************************************************************)
+  (****************************************************************************)
+
+  (****************************************************************************)
+  (*****************************  dinic ***************************************)
+  (****************************************************************************)
+
+  (*********************** cleaning function **********************************)
+
+  (* ces fonctions n'ont finalement pas été utilisé.
+     Il n'est pas nécessaire de refaire le graph à chaque fois*)
+
+  (* https://www.youtube.com/watch?v=M6cm8UeeziI *)
 end
 
 (************************************************************************)
@@ -324,7 +414,7 @@ module Make (X : Map.OrderedType) = struct
   (**********************  FOLD FUNCTION ***********************************)
 
   (*
-     le fold n'est fait que sur les clé, donc les noeuds (from)
+     le fold n'est fait que sur les clé, donc les noeuds
   *)
   let fold_node f g v0 =
     NodeMap.fold (fun currNode _ acc -> f currNode acc) g v0
@@ -352,7 +442,7 @@ module Make (X : Map.OrderedType) = struct
           successeur acc1 )
       g acc
 
-  (**********************  ADDING FUNCTION ***********************************)
+  (***********************  ADDING FUNCTION ***********************************)
 
   (* ajoute un noeud au graphe, qui n'est relié à rien *)
   let add_lonely_node n g =
@@ -360,7 +450,7 @@ module Make (X : Map.OrderedType) = struct
       (* si un noeud existe déjà, il n'est pas ajouté au graph *)
       g
     else
-      (*sinon on l'ajoute*)
+      (*sinon on l'ajoute, relié à rien*)
       NodeMap.add n NodeMap.empty g
 
   (* fais : n1 ----- (min, max) ----> n2 ; si n1 et n2 existe dans le graph *)
@@ -401,28 +491,29 @@ module Make (X : Map.OrderedType) = struct
 
   let remove_edges n1 n2 g =
     let graph_unlink_n1_to_n2 = remove_edge n1 n2 g in
-    let graph_unlink_n2_to_n1 = remove_edge n2 n1 graph_unlink_n1_to_n2 in
-    graph_unlink_n2_to_n1
+    remove_edge n2 n1 graph_unlink_n1_to_n2
 
   let remove_node n g =
-    let graph_without_successor_to_n =
-      (* pour le dictionnaire de successeurs, on applique remove,
-         afin d'enlever la clé n ,
-         et on ajoute cette nouvelle map à la clé , ce qui
-         met donc à jour ses successeurs*)
-      NodeMap.fold
-        (fun noeud valeur acc -> NodeMap.add noeud (NodeMap.remove n valeur) acc)
-        g NodeMap.empty
-    in
-    NodeMap.remove n graph_without_successor_to_n
+    if mem_node n g then
+      let graph_without_successor_to_n =
+        (* pour le dictionnaire de successeurs, on applique remove,
+           afin d'enlever la clé n ,
+           et on ajoute cette nouvelle map à la clé , ce qui
+           met donc à jour ses successeurs*)
+        NodeMap.fold
+          (fun noeud valeur acc ->
+            NodeMap.add noeud (NodeMap.remove n valeur) acc )
+          g NodeMap.empty
+      in
+      NodeMap.remove n graph_without_successor_to_n
+    else
+      g
 
   (********************  COUNTING FUNCTION *********************************)
 
   (* nombre d'arc qui pointe vers le noeud*)
   let number_of_incoming_edge n g =
-    if not (mem_node n g) then
-      failwith "number_of_incoming_edge : le noeud n'existe pas"
-    else
+    if mem_node n g then
       fold_succs
         (fun node _ acc ->
           if node = n then
@@ -430,14 +521,16 @@ module Make (X : Map.OrderedType) = struct
           else
             acc )
         g 0
+    else
+      failwith "number_of_incoming_edge : le noeud n'existe pas"
 
   (* nombre d'arc qui quitte le noeud, c'est donc le nombre de successeurs*)
-  let number_of_outgoing_edge (n : node) (g : graph) =
-    if not (mem_node n g) then
-      failwith "number_of_outgoing_edge : le noeud n'existe pas"
-    else
+  let number_of_outgoing_edge n g =
+    if mem_node n g then
       let map_of_succs = succs n g in
       NodeMap.cardinal map_of_succs
+    else
+      failwith "number_of_outgoing_edge : le noeud n'existe pas"
 
   (******************** GETTER FUNCTION ****************************)
   let get_flow (n1, n2) g =
@@ -447,8 +540,6 @@ module Make (X : Map.OrderedType) = struct
       (min, max)
     else
       failwith "get_flow : l'arête n'existe pas"
-
-  (******************** SETTER FUNCTION ****************************)
 
   (********************  LIST TO GRAPH FUNCTION ****************************)
 
@@ -460,7 +551,7 @@ module Make (X : Map.OrderedType) = struct
      |----(3,4)----> c
   *)
 
-  let list_to_graph (l : (node * int * int * node) list) : graph =
+  let list_to_graph l =
     List.fold_right
       (fun (start, min, max, finish) acc -> add_node start min max finish acc)
       l empty
@@ -470,9 +561,11 @@ module Make (X : Map.OrderedType) = struct
       (fun (start, finish) acc -> add_node start 0 1 finish acc)
       l empty
 
-  (***********************************************************)
-  (******************** Phase 1 ******************************)
-  (***********************************************************)
+  (****************************************************************************)
+  (****************************************************************************)
+  (***************************** Phase 1 **************************************)
+  (****************************************************************************)
+  (****************************************************************************)
 
   (** BUT : partir de a , trouver l'ensemble des plus court chemins
 
@@ -537,25 +630,30 @@ module Make (X : Map.OrderedType) = struct
         let n, min, max = List.hd listOfPath in
         (*on récupère ses successeurs*)
         let succs_of_n = succs n g in
-        (*on fold sur tous les successeurs pour les ajouter à l'ensemble des chemins*)
+        (*on fold sur tous les successeurs
+           pour les ajouter à l'ensemble des chemins*)
         NodeMap.fold
           (* on ajoute le nouveau chemin à l'ensemble des chemin*)
             (fun nodeSuccessor (min, max) acc2 ->
-            (* on vérifie si le noeud est déja la , pour ça il suffit de regarde si la tête c'est le même ça prend moins de temps qu'un mem *)
             if min <> max then
               let newPath =
                 if List.hd listOfPath = (nodeSuccessor, min, max) then
+                  (* on vérifie si le noeud est déja la ,
+                     permet d'évitez les boucles
+                  *)
                   listOfPath
                 else
                   (nodeSuccessor, min, max) :: listOfPath
               in
               SetOfPath.add newPath acc2
             else
+              (* si arête saturé, on passe au prochain chemin*)
               acc2 )
           succs_of_n acc1 )
       ensInit ensInit
 
-  (* fonction qui tant que les élément dans le SetOfPath ont des successerus, appel add_paths_to_set *)
+  (* fonction qui tant que les élément dans le SetOfPath ont des successeurs,
+     appel add_paths_to_set *)
   (* cela permet de remplir l'ensemble de tous les chemins possibles*)
   let rec add_paths_to_set_while_possible ensInit g =
     (* on ajoute les chemins tant que c'est possible*)
@@ -566,7 +664,9 @@ module Make (X : Map.OrderedType) = struct
     else
       newSetOfPath
 
-  (* maintenant, il suffit de prendre un noeud de départ et d'appliquer la fonction pour avoir l'ensemble avec tous les chemins allant de start vers goal *)
+  (* maintenant, il suffit de prendre un noeud de départ
+     et d'appliquer la fonction pour avoir l'ensemble
+     avec tous les chemins allant de start vers goal *)
   let all_path start goal g =
     (* on transforme le noeud en ensemble*)
     let startingSet = SetOfPath.singleton [(start, 0, 0)] in
@@ -582,7 +682,7 @@ module Make (X : Map.OrderedType) = struct
       allSet
 
   (* fonction qui trouve le plus petit chemin à partir d'un ensemble*)
-  let shortestOfSet set =
+  let shortest_set set =
     (*fold sur l'ensemble*)
     SetOfPath.fold
       (fun listOfPath acc ->
@@ -595,38 +695,27 @@ module Make (X : Map.OrderedType) = struct
       (* on commence en prenant la taille du premier set*)
       (List.length (SetOfPath.choose set))
 
-  (* fonction qui prend tous les chemins dans un ensemble, trouve le plus cours, et filtre afin de garder tout ceux égal au plus court*)
-  let allShortestPaths start goal g =
+  (* fonction qui prend tous les chemins dans un ensemble,
+     trouve le plus cours, et filtre afin de garder tout ceux égal
+     au plus court*)
+  let all_shortest_paths start goal g =
     try
       let allPath = all_path start goal g in
-      let shortest = shortestOfSet allPath in
+      let shortest = shortest_set allPath in
       SetOfPath.filter
         (fun listOfPath -> List.length listOfPath = shortest)
         allPath
-    with Not_found ->
-      Printf.printf "plus de chemin entre start et goal\n" ;
-      SetOfPath.empty
+    with Not_found -> SetOfPath.empty
 
-  (***********************************************************)
-  (***********************************************************)
-  (******************** phase 2 ******************************)
-  (***********************************************************)
-  (***********************************************************)
+  (****************************************************************************)
+  (****************************************************************************)
+  (***************************** Phase 2 **************************************)
+  (****************************************************************************)
+  (****************************************************************************)
 
-  (***********************************************************)
-  (******************** V1 : dinic ***************************)
-  (***********************************************************)
-
-  (* https://www.youtube.com/watch?v=M6cm8UeeziI *)
-
-  (* Pour connaitre le nombre de niveau il faut faire un BFS *)
-  (* Les arêtes qui font passer du niveau N+1 au niveau N doivent être retirées du graphe. *)
-  (* Les arêtes qui reste du niveau N au niveau N aussi *)
-
-  (* Etape 1 : Construire le graphe de niveau en faisant un BFS de la source à la destination. un graph par niveau est un sous ensemble d'arête
-     Etape 2 : Si le puit n'a jamais été atteint retourner le graph , c'est le graph de flow max
-     Etape 3 : En utilisant seulement les arêtes valides, faire plusieurs DFS jusqu'a atteindre le flot bloquant
-     La somme des flots bottleneck est le flot max *)
+  (****************************************************************************)
+  (*****************************  dinic ***************************************)
+  (****************************************************************************)
 
   (*les niveaux se font uniquement à partir des chemins les plus courts
     vers le puits, ils font donc faire la liste des noeuds qui n'en font
@@ -637,7 +726,7 @@ module Make (X : Map.OrderedType) = struct
     let set_of_all_node =
       fold_node (fun node acc -> NodeSet.add node acc) g NodeSet.empty
     in
-    let set_shortest_path = allShortestPaths start goal g in
+    let set_shortest_path = all_shortest_paths start goal g in
     (* on crée un ensemble qui contient tous les noeuds du plus petit*)
     let set_of_node_shortest_path =
       SetOfPath.fold
@@ -659,11 +748,6 @@ module Make (X : Map.OrderedType) = struct
        qui n'ont pas déja été utilisé (regarder si le noeud est dans la blacklist)
      - On recommence l'algorithme seulement sur les arêtes ou false
   *)
-
-  (* fonction qui prend un graph et enlève les noeuds qui ne font pas partie du plus court chemin  pour avoir un graph de niveau  correct *)
-  let clean_graph start goal g =
-    let blacklisted = blacklisted_node start goal g in
-    NodeSet.fold (fun node acc -> remove_node node acc) blacklisted g
 
   (* maintenant, il faut prendre un chemin, qu va de start à goal
      prendre le minimum de flow disponible pdt se trajet, mettre à jour le graph, et retourner le graph, si le flot min est plus petit que ce que l'on cherche à inscrire, une fois qu'une *)
@@ -772,18 +856,8 @@ module Make (X : Map.OrderedType) = struct
           succs acc )
       g 0
 
-  (* le problème est que l'on fold et donc on rappel dinic avant même qu'il finisse de lire la première liste des ensembles*)
-
-  let clean_set_from_node n ens =
-    SetOfPath.filter (fun listOfPath -> not (mem_set_of_path n listOfPath)) ens
-
-  (* fonction qui prend un ensemble de chemin, une liste de noeud
-     et supprime tous les chemins dont le noeud appartient*)
-  let clean_set s l =
-    List.fold_left (fun acc noeud -> clean_set_from_node noeud acc) s l
-
   let rec dinic start goal g =
-    let shortest_path = allShortestPaths start goal g in
+    let shortest_path = all_shortest_paths start goal g in
     if shortest_path = SetOfPath.empty then
       g
     else
@@ -793,4 +867,20 @@ module Make (X : Map.OrderedType) = struct
           shortest_path g
       in
       dinic start goal g
+
+  (*********************** cleaning function **********************************)
+  (* le problème est que l'on fold et donc on rappel dinic avant même qu'il finisse de lire la première liste des ensembles*)
+
+  (* fonction qui prend un graph et enlève les noeuds qui ne font pas partie du plus court chemin  pour avoir un graph de niveau  correct *)
+  let clean_graph start goal g =
+    let blacklisted = blacklisted_node start goal g in
+    NodeSet.fold (fun node acc -> remove_node node acc) blacklisted g
+
+  let clean_set_from_node n ens =
+    SetOfPath.filter (fun listOfPath -> not (mem_set_of_path n listOfPath)) ens
+
+  (* fonction qui prend un ensemble de chemin, une liste de noeud
+     et supprime tous les chemins dont le noeud appartient*)
+  let clean_set s l =
+    List.fold_left (fun acc noeud -> clean_set_from_node noeud acc) s l
 end
