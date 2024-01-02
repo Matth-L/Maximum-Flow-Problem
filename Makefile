@@ -1,6 +1,6 @@
 OCAMLFLAGS = ocamlc -g
 OCAMLDEBUG = ocamlrun -b -t cprogs
-TARGET = test phase1 phase2
+TARGET = test phase1 phase2 phase1.txt phase2.txt
 
 .PHONY = all clean tests
 
