@@ -46,7 +46,10 @@ let big_graph =
     ; ('f', 'c')
     ; ('e', 'c') ]
 
-(*graph de la vidéo*)
+(*
+graph de la vidéo
+https://www.youtube.com/watch?v=M6cm8UeeziI   
+*)
 let goal_graph =
   PGraph.list_to_graph
     [ ('s', 0, 5, 'a')

@@ -825,18 +825,19 @@ module Make (X : Map.OrderedType) = struct
   (****************************************************************************)
 
   (* but :
+     https://www.youtube.com/watch?v=M6cm8UeeziI
 
      Pour chaque chemin dans l'ensemble des chemins les plus courts
-     - Parcourir de source à destination, en utilisant uniquement
-       les arêtes valides ; si on atteint la destination,
-       on met le poids de toutes les arêtes par lequel on est passé à jour,
-       c'est à dire au flot bloquant
-       (puis blacklist les noeuds empruntés saturé)
-     - On s'arrête quand on ne peut plus atteindre la destination
-       par des arêtes qui n'ont pas déja été utilisé
-       (regarder si le noeud est dans la blacklist)
-     - On recommence l'algorithme seulement sur les arêtes qui n'ont pas été
-       saturé
+      - Parcourir de source à destination, en utilisant uniquement
+        les arêtes valides ; si on atteint la destination,
+        on met le poids de toutes les arêtes par lequel on est passé à jour,
+        c'est à dire au flot bloquant
+        (puis blacklist les noeuds empruntés saturé)
+      - On s'arrête quand on ne peut plus atteindre la destination
+        par des arêtes qui n'ont pas déja été utilisé
+        (regarder si le noeud est dans la blacklist)
+      - On recommence l'algorithme seulement sur les arêtes qui n'ont pas été
+        saturé
   *)
 
   let get3rd (n1, n2, n3) = n3
