@@ -6,6 +6,7 @@ TARGET = test phase1 phase2
 
 test :  graph.cmo testGraph.cmo
 	$(OCAMLFLAGS)  graph.cmo testGraph.cmo -o test
+	./test
 
 phase1 : graph.cmo analyse.cmi analyse.cmo main.cmo
 	$(OCAMLFLAGS) graph.cmo analyse.cmo main.cmo -o phase1 

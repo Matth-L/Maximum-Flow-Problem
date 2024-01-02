@@ -63,6 +63,7 @@ let goal_graph =
     ; ('h', 0, 10, 'i')
     ; ('i', 0, 10, 't') ]
 
+(* graph de l'énoncé*)
 let graph_file =
   PGraph.list_to_graph
     [ ('s', 0, 10, 's')
@@ -77,11 +78,14 @@ let graph_file =
 
 let graph_a_b = PGraph.list_to_graph_no_pond [('a', 'b')]
 
-let prettyPrint test nameOfTest commentaire =
+(**
+color might break things idk
+*)
+let pretty_print test nameOfTest commentaire =
   if test then
-    Printf.printf "%s %s : OK \n" nameOfTest commentaire
+    Printf.printf "\027[32m\n%s %s : OK \n\027[0m" nameOfTest commentaire
   else
-    Printf.printf "%s %s : NOT OK \n" nameOfTest commentaire
+    Printf.printf "\027[31m\n%s %s : NOT OK \n\027[0m" nameOfTest commentaire
 
 let pretty_print_all_shortest_paths setPath =
   Printf.printf "all_shortest_paths: \n" ;
@@ -90,8 +94,8 @@ let pretty_print_all_shortest_paths setPath =
       match path with
       | [] ->
           ()
-      | (first_node, min, max) :: rest_of_path ->
-          Printf.printf "Path: [%c,(%i ;%i)]" first_node min max ;
+      | (node, min, max) :: rest_of_path ->
+          Printf.printf "Path: [%c,(%i ;%i)]" node min max ;
           List.iter
             (fun (node, min, max) ->
               Printf.printf " <-- [%c,(%i ;%i)]" node min max )
@@ -102,28 +106,23 @@ let pretty_print_all_shortest_paths setPath =
 (******************** is_empty ************************)
 
 (*test vacuité*)
-let vacuite1 g =
-  prettyPrint (PGraph.is_empty g) "test_is_empty" "test graph vide de base"
-
-let _ = vacuite1 PGraph.empty
+let test_vacuite g =
+  pretty_print (PGraph.is_empty g) "test_is_empty" "test graph vide de base"
 
 (******************** fold_node ************************)
 
-(* pour tester le fold on va faire différentes opérations
-   les noeuds pour voir s'il fonctionne *)
-
 (* on va compter le nombre de noeud de différents graph*)
+(* compte le nombre de noeud manuellement et implémenté *)
 
 let test_fold_node g =
   let numFold = PGraph.fold_node (fun node acc -> acc + 1) g 0 in
   let numManualFold = PGraph.NodeMap.fold (fun node _ acc -> acc + 1) g 0 in
-  prettyPrint (numFold = numManualFold) "test_fold_node" "fold_node fonctionne"
-
-let _ = test_fold_node small_graph_1
+  pretty_print (numFold = numManualFold) "test_fold_node" "fold_node fonctionne"
 
 (******************** fold_succs ************************)
 
-(* compte le nombre d'arc *)
+(* compte le nombre d'arc  avec un fold manuel et implémenté , on vérifie
+   si le même résulat est donnée*)
 let test_fold_succs g =
   let numFold = PGraph.fold_succs (fun noeud ponderation acc -> acc + 1) g 0 in
   let numManualFold =
@@ -131,100 +130,68 @@ let test_fold_succs g =
       (fun _ succs acc -> PGraph.NodeMap.fold (fun _ _ acc -> acc + 1) succs acc)
       g 0
   in
-  prettyPrint (numFold = numManualFold) "test_fold_succs" "graph avec 4 arc"
-
-let _ = test_fold_succs small_graph_1
+  pretty_print (numFold = numManualFold) "test_fold_succs"
+    "fold_succs fonctionne"
 
 (******************** mem_node TEST ************************)
 
-let _ =
-  let result = PGraph.mem_node 'b' small_graph_1 in
-  prettyPrint result "test_mem_node" "B in Graph "
+(* on choisi un noeud et regarde si le test fonctionne*)
+let test_mem_node g =
+  (* on choisi une clé dans le graph*)
+  let node, succs = PGraph.NodeMap.choose g in
+  let result = PGraph.mem_node node g in
+  pretty_print result "test_mem_node" "node in graph "
 
 (******************** mem_edge TEST ************************)
-(* la fonction retourne une exception si n1 n'est pas dans le graph
-   booléen sinon *)
 
-(*test existent d'arête*)
-let _ =
-  prettyPrint
-    (PGraph.mem_edge 'a' 'b' graph_a_b)
-    "test_mem_edge" "A ---> B existe"
-
-(*test si l'un des deux noeuds n'existe pas *)
-let _ =
-  let graph = PGraph.add_lonely_node 'a' PGraph.empty in
-  let graph_with_2_node = PGraph.add_lonely_node 'b' graph in
-  prettyPrint
-    (not (PGraph.mem_edge 'a' 'c' graph_with_2_node))
-    "test_mem_edge" "A ---> C n'existe pas"
-
-(*test si le premier noeud n'existe pas (doit throw une exception)*)
-let _ =
-  let graph = PGraph.add_lonely_node 'a' PGraph.empty in
-  let graph_with_2_node = PGraph.add_lonely_node 'b' graph in
-  prettyPrint
-    (not (PGraph.mem_edge 'c' 'b' graph_with_2_node))
-    "test_mem_edge" "C ---> B n'existe pas"
+(* de même pour une arête*)
+let test_mem_edge g =
+  let node, succs = PGraph.NodeMap.choose g in
+  let node2, ponderation = PGraph.NodeMap.choose succs in
+  let result = PGraph.mem_edge node node2 g in
+  pretty_print result "test_mem_edge" "edge in graph "
 
 (******************** mem_exist_as_successor TEST ************************)
 
-(* test si le noeud a est un successeur d'un noeud *)
-let _ =
-  (* a est le successeur de b donc vrai *)
-  let result = PGraph.mem_exist_as_successor 'b' small_graph_1 in
-  prettyPrint result "test_mem_exist_as_successor"
-    "A est le successeur d'un noeud"
-
-(* test si le noeud b n'est pas un successeur*)
-let _ =
-  let graph = PGraph.list_to_graph_no_pond [('a', 'b'); ('a', 'c')] in
-  (* b n'est le successeur de personne donc faux*)
-  let result = PGraph.mem_exist_as_successor 'b' graph in
-  prettyPrint result "test_mem_exist_as_successor"
-    "B est le successeur d'aucun noeud"
+(* on fait dans le sens inverse on vérifie s'il est bien un succs*)
+let test_mem_exist_as_successor g =
+  let node, succs = PGraph.NodeMap.choose g in
+  let node2, ponderation = PGraph.NodeMap.choose succs in
+  let result = PGraph.mem_exist_as_successor node2 g in
+  pretty_print result "test_mem_exist_as_successor"
+    "node2 is a successor of a node"
 
 (******************** succs TEST ************************)
 
-let _ =
-  (*
-     dans la map on a donc 
-    {a : {b : 1 }}
-  *)
-  (* on récupère le succeseur de a *)
-  let successor_of_n1 = PGraph.succs 'a' graph_a_b in
-  (* dans successor_of_n1 on a donc :
-     {b : 1}
-  *)
-  prettyPrint
-    (PGraph.NodeMap.mem 'b' successor_of_n1)
-    "test_succs" "le successeur de a est b"
+let test_succs g =
+  (* on prend le successeur d'un noeud avec la fonction et manuellement*)
+  let node, succs = PGraph.NodeMap.choose g in
+  let succsNode = PGraph.succs node g in
+  let succsNodeManual = PGraph.NodeMap.find node g in
+  let result = succsNode = succsNodeManual in
+  pretty_print result "test_succs" "succs fonctionne"
 
 (******************** add_lonely_node TEST ************************)
 
-(* test l'existence d'un noeud lors de son ajout *)
-let _ =
-  let graph = PGraph.add_lonely_node 'a' PGraph.empty in
-  prettyPrint
-    (PGraph.mem_node 'a' graph)
-    "test_add_lonely_node" "le noeud a est ajouté"
-
-(* test que ce noeud n'a bien pas de successeur*)
-let _ =
-  let graph = PGraph.add_lonely_node 'a' PGraph.empty in
-  let successor_of_n1 = PGraph.succs 'a' graph in
-  prettyPrint
-    (PGraph.NodeMap.is_empty successor_of_n1)
-    "test_add_lonely_node" "le noeud n'a pas de successeur"
+let test_add_lonely_node g =
+  (* pour faire un set de test très générique
+     il faudrait ajouter parmi la liste des noeuds
+     qui ne sont pas dans le graph,
+     mais je sais que les lettres de la fin de
+     l'alphabet ne sont jamais utilisé dans mes test*)
+  let newGraph = PGraph.add_lonely_node 'z' g in
+  let result = PGraph.mem_node 'z' newGraph in
+  pretty_print result "test_add_lonely_node" "add_lonely_node fonctionne"
 
 (******************** add_edge TEST ************************)
 
-(* test qui vérifie si A ----> B  et que A <------ B n'existe pas *)
-let _ =
-  let a_vers_b = PGraph.mem_edge 'a' 'b' graph_a_b in
-  let b_vers_a = PGraph.mem_edge 'b' 'a' graph_a_b in
-  prettyPrint (a_vers_b && not b_vers_a) "test_edge"
-    "A ---> B existe et A <---- B n'existe pas"
+let test_add_edge g =
+  (* on prend a ---> b et on ajoute b ---> a *)
+  let node, succs = PGraph.NodeMap.choose g in
+  let node2, ponderation = PGraph.NodeMap.choose succs in
+  let newGraph = PGraph.add_edge node2 0 1 node g in
+  let result = PGraph.mem_edge node2 node newGraph in
+  pretty_print result "test_add_edge" "add_edge fonctionne"
 
 (******************** add_node TEST ************************)
 
@@ -233,80 +200,40 @@ let _ =
    avant : graph avec juste un noeud ex: 'a'
    après : a ---(1)---> b
 *)
-let _ =
-  let node_created = PGraph.mem_node 'b' graph_a_b in
-  prettyPrint node_created "test_add_node" "le nouveau noeud B existe"
 
-(* test si l'arête a bien été crée*)
-let _ =
-  let edge_created = PGraph.mem_edge 'a' 'b' graph_a_b in
-  prettyPrint edge_created "test_add_node" "l'arête A ---> B existe"
-
-(* test qui vérifie que add_node 'a' 'a' ne crée pas une boucle*)
-let _ =
-  let graph = PGraph.list_to_graph_no_pond [('a', 'a')] in
-  let graphWithCycle = PGraph.add_node 'a' 0 1 'a' graph in
-  prettyPrint
-    (PGraph.mem_edge 'a' 'a' graphWithCycle)
-    "test_add_node" "A---> A n'existe pas "
+let test_add_node g =
+  let nodeS = 'y' in
+  let nodeG = 'z' in
+  let newGraph = PGraph.add_node nodeS 0 1 nodeG g in
+  (* y ----> z *)
+  (* les 2 noeuds existe *)
+  let node_S_exist = PGraph.mem_node nodeS newGraph in
+  let node_G_exist = PGraph.mem_node nodeG newGraph in
+  (* l'arête existe *)
+  let edge_exist = PGraph.mem_edge nodeS nodeG newGraph in
+  let result = node_S_exist && node_G_exist && edge_exist in
+  pretty_print result "test_add_node" "add_node fonctionne"
 
 (******************** remove_edge TEST ************************)
 
 (* test qui vérifie si l'arête a bien été supprimer ,
    càd que n2 n'est plus dans les successeurs de n1 *)
 
-let _ =
-  let graph_two_lonely_node = PGraph.remove_edge 'a' 'b' graph_a_b in
-  prettyPrint
-    (not (PGraph.mem_edge 'a' 'b' graph_two_lonely_node))
-    "test_remove_edge" "A ---> B n'existe plus"
-
-(*test si malgré une boucle , A n'a pas été supprimé *)
-let _ =
-  let graph = PGraph.list_to_graph_no_pond [('a', 'a')] in
-  let g = PGraph.remove_edge 'a' 'a' graph in
-  prettyPrint (PGraph.mem_node 'a' g) "test_remove_edge"
-    "A existe toujours en enlevant sa boucle"
+let test_remove_edge g =
+  let node, succs = PGraph.NodeMap.choose g in
+  let succs, pond = PGraph.NodeMap.choose succs in
+  let newGraph = PGraph.remove_edge node succs g in
+  let result = not (PGraph.mem_edge node succs newGraph) in
+  pretty_print result "test_remove_edge" "remove_edge fonctionne"
 
 (******************** remove_node TEST ************************)
 
 (* test qui vérifie si le noeud est bien enlevé du graph *)
-
-(*
-
-                |-|
-                v |
-    a---------->b--
-    |           ^
-    |           |
-    |---------->c
-*)
-let _ =
-  let graph =
-    PGraph.list_to_graph_no_pond [('a', 'b'); ('a', 'c'); ('c', 'b')]
-  in
-  let addedCycle = PGraph.add_default_edge 'b' 'b' graph in
-  let removedA = PGraph.remove_node 'a' addedCycle in
-  prettyPrint
-    (not (PGraph.mem_node 'a' removedA))
-    "test_remove_node" "A n'existe plus"
-
-(* test si A n'est plus dans les autres *)
-(*
-         |----|
-         |    |
-         v    |
-b -----> a ----
-         ^
-c--------|
-*)
-let _ =
-  let graph = PGraph.list_to_graph_no_pond [('b', 'a'); ('c', 'a')] in
-  let graphWithCycle = PGraph.add_default_edge 'a' 'a' graph in
-  let removedA = PGraph.remove_node 'a' graphWithCycle in
-  let result = PGraph.mem_exist_as_successor 'a' removedA in
-  prettyPrint (not result) "test_remove_node"
-    "A n'est plus dans les successeurs des autres noeuds"
+let test_remove_node g =
+  (* a existe à chaque fois dans les test*)
+  let nodeWithoutA = PGraph.remove_node 'a' g in
+  let result = not (PGraph.mem_node 'a' nodeWithoutA) in
+  pretty_print result "test_remove_node" "remove_node fonctionne"
 
 (******************** number_of_incoming_edge TEST ************************)
 
@@ -325,13 +252,13 @@ let _ =
      c  : {c : 1}
    }
 *)
-let _ =
+let number_of_incoming_edge =
   let graph =
     PGraph.list_to_graph_no_pond [('a', 'b'); ('b', 'c'); ('a', 'c')]
   in
   let final = PGraph.add_default_edge 'c' 'c' graph in
   let incoming_edge = PGraph.number_of_incoming_edge 'c' final in
-  prettyPrint (incoming_edge = 3) "test number_of_incoming_edge"
+  pretty_print (incoming_edge = 3) "test number_of_incoming_edge"
     "C à le bon nombre d'arc entrant"
 
 (******************** number_of_outgoing_edge **************************)
@@ -352,13 +279,13 @@ let _ =
 
    a à 2 arête qui le quitte
 *)
-let _ =
+let number_of_outgoing_edge =
   let graph =
     PGraph.list_to_graph_no_pond [('a', 'b'); ('b', 'c'); ('a', 'c')]
   in
   let final = PGraph.add_default_edge 'c' 'c' graph in
   let outgoing_edge = PGraph.number_of_outgoing_edge 'a' final in
-  prettyPrint (outgoing_edge = 2) "test number_of_outgoing_edge "
+  pretty_print (outgoing_edge = 2) "test number_of_outgoing_edge "
     "(A à le bon nombre d'arc sortant)"
 
 (******************** add_paths TEST ************************)
@@ -379,7 +306,7 @@ let _ =
      graph test
 *)
 
-let _ =
+let add_path =
   (* set de Test *)
   let graph =
     PGraph.list_to_graph_no_pond
@@ -397,82 +324,75 @@ let _ =
   let addedCycles = PGraph.add_default_edge 'b' 'b' graph in
   (*test bfs*)
   let normallySameSet = PGraph.all_shortest_paths 'a' 'c' addedCycles in
-  (*printing the whole set *)
   Printf.printf "all_shortest_paths: \n" ;
-  pretty_print_all_shortest_paths normallySameSet
+  pretty_print_all_shortest_paths normallySameSet ;
+  pretty_print
+    (PGraph.SetOfPath.cardinal normallySameSet = 2)
+    "test_add_paths" "Il y a bien 2 chemin de A vers C "
+
+(******************** get_flow ************************)
+
+let test_get_flow g =
+  let node, succs = PGraph.NodeMap.choose g in
+  let node2, ponderation = PGraph.NodeMap.choose succs in
+  let flow = PGraph.get_flow (node, node2) g in
+  (* get flow manuellement*)
+  let flowManual = PGraph.NodeMap.find node2 succs in
+  let result = flow = flowManual in
+  pretty_print result "test_get_flow" "get_flow fonctionne"
 
 (******************** TEST dinic ************************)
-
-(*test nombre de niveau*)
-
-let _ =
-  let graph =
-    PGraph.list_to_graph_no_pond
-      [ ('a', 'b')
-      ; ('a', 'd')
-      ; ('a', 'e')
-      ; ('b', 'c')
-      ; ('e', 'g')
-      ; ('b', 'f')
-      ; ('g', 'c')
-      ; ('f', 'c')
-      ; ('e', 'c') ]
-  in
-  let all_path = PGraph.all_shortest_paths 'a' 'c' graph in
-  (*compte le nombre de niveau*)
-  let listLength =
-    (* on enlève -2 car le puit et la source sont dedans *)
-    PGraph.SetOfPath.fold (fun l acc -> (List.length l - 2) :: acc) all_path []
-  in
-  List.iter (fun x -> Printf.printf "%i " x) listLength
 
 (*test nom des arêtes enlevé *)
 let _ =
   let set_blacklist = PGraph.blacklisted_node 's' 't' graph_file in
-  PGraph.NodeSet.iter (fun node -> Printf.printf "\n%c" node) set_blacklist
+  pretty_print
+    (PGraph.NodeSet.cardinal set_blacklist = 1)
+    "\ntest_blacklisted_node" "Uniquement D à été enlevé"
 
 (*test get_bottleneck *)
-
 (* graph vidéo *)
-(* la 1e etape fonctionne
-   let _ =
-     Printf.printf "\n\ntest graph goal_graph \n";
-     let shortest = PGraph.all_shortest_paths 's' 't' goal_graph in
-     Printf.printf "\nBefore applying bottleneck\n";
-     pretty_print_all_shortest_paths shortest;
-     let g =
-       PGraph.SetOfPath.fold
-         (fun path acc -> PGraph.apply_bottleneck (List.rev path) acc)
-         shortest goal_graph
-     in
-     Printf.printf "\nAfter applying bottleneck\n";
-     let newShortest = PGraph.all_shortest_paths 's' 't' g in
-     pretty_print_all_shortest_paths newShortest;
-     Printf.printf "\n";
-     Printf.printf "flow_maximal : %i\n" (PGraph.get_max_flow 't' g)
-*)
+(* la 1e etape fonctionne*)
+let _ =
+  Printf.printf "\n\ntest graph goal_graph \n" ;
+  let shortest = PGraph.all_shortest_paths 's' 't' goal_graph in
+  Printf.printf "\nBefore bottleneck\n" ;
+  pretty_print_all_shortest_paths shortest ;
+  let g =
+    PGraph.SetOfPath.fold
+      (fun path acc ->
+        (* on applique le bottleneck sur la liste dans le bon sens*)
+        PGraph.apply_bottleneck (List.rev path) acc )
+      shortest goal_graph
+  in
+  Printf.printf "\nAfter bottleneck\n" ;
+  let newShortest = PGraph.all_shortest_paths 's' 't' g in
+  pretty_print_all_shortest_paths newShortest ;
+  pretty_print
+    (PGraph.get_maximum_flow_from_node 't' g = 30)
+    "test_bottleneck" "Le flow maximal est bien de 30"
 
-(* graph exo *)
+(* graph énoncé *)
 
 (* test 1 itération*)
 let _ =
   Printf.printf "\n\ntest graph graph_file \n" ;
   let shortest = PGraph.all_shortest_paths 's' 't' graph_file in
-  Printf.printf "\nBefore applying bottleneck\n" ;
+  Printf.printf "\nBefore bottleneck\n" ;
   pretty_print_all_shortest_paths shortest ;
   Printf.printf "\n" ;
   let g =
     PGraph.SetOfPath.fold
-      (fun path acc ->
-        (* printing list*)
-        PGraph.apply_bottleneck (List.rev path) acc )
+      (fun path acc -> PGraph.apply_bottleneck (List.rev path) acc)
       shortest graph_file
   in
-  Printf.printf "\n 1 iteration \n" ;
+  Printf.printf "\n 1 iteration \n\n" ;
   let newShortest = PGraph.all_shortest_paths 's' 't' g in
   pretty_print_all_shortest_paths newShortest ;
   Printf.printf "\n" ;
-  Printf.printf "flow_maximal : %i" (PGraph.get_max_flow 't' g)
+  pretty_print
+    (PGraph.get_maximum_flow_from_node 't' g = 8)
+    "test_bottleneck" "Le flow maximal est bien de 8 après 1 itération"
 
 (*test dinic *)
 let _ =
@@ -487,23 +407,62 @@ let _ =
         succs )
     g ;
   Printf.printf "\n" ;
-  Printf.printf "flow_maximal : %i" (PGraph.get_max_flow 't' g)
+  pretty_print
+    (PGraph.get_maximum_flow_from_node 't' g = 10)
+    "test_dinic" "Le flow maximal est bien de 10 à la fin de l'algo"
 
-(*
-   (* test clean_set
-      semble fonctionner *)
-   let _ =
-     Printf.printf "\n\ntest clean_set \n";
-     let shortest = PGraph.all_shortest_paths 's' 't' goal_graph in
-     Printf.printf "\nBefore \n";
-     pretty_print_all_shortest_paths shortest;
-     let newSet = PGraph.clean_set shortest [ 'h'; 'a' ] in
-     Printf.printf "\nAfter \n";
-     pretty_print_all_shortest_paths newSet
+(* test clean_set
+   semble fonctionner *)
+let _ =
+  Printf.printf "\n\ntest clean_set \n" ;
+  let shortest = PGraph.all_shortest_paths 's' 't' goal_graph in
+  Printf.printf "\nBefore \n" ;
+  pretty_print_all_shortest_paths shortest ;
+  let newSet = PGraph.clean_set shortest ['h'; 'a'] in
+  Printf.printf "\nAfter \n" ;
+  pretty_print_all_shortest_paths newSet ;
+  pretty_print
+    (PGraph.SetOfPath.cardinal newSet = 1)
+    "test_clean_set" "Il ne reste plus qu'un chemin"
 
-   (*test chemin qui n'existe pas *)
-   let _ =
-     Printf.printf "\n\ntest chemin qui n'existe pas \n";
-     let shortest = PGraph.all_shortest_paths 't' 's' goal_graph in
-     Printf.printf "\n\n";
-     pretty_print_all_shortest_paths shortest *)
+(*test chemin qui n'existe pas *)
+let _ =
+  Printf.printf "\n\ntest chemin qui n'existe pas \n" ;
+  let shortest = PGraph.all_shortest_paths 't' 's' goal_graph in
+  Printf.printf "\n\n" ;
+  pretty_print
+    (PGraph.SetOfPath.cardinal shortest = 0)
+    "test_chemin_inexistant" "Il n'y a pas de chemin de t vers s"
+
+(************************ GENERIC SET OF TEST *********************************)
+let all_test g =
+  test_vacuite PGraph.empty ;
+  test_fold_node g ;
+  test_fold_succs g ;
+  test_mem_node g ;
+  test_mem_edge g ;
+  test_mem_exist_as_successor g ;
+  test_succs g ;
+  test_add_lonely_node g ;
+  test_add_edge g ;
+  test_add_node g ;
+  test_remove_edge g ;
+  test_remove_node g ;
+  test_get_flow g
+
+let graph_list =
+  [ ("small_graph_1", small_graph_1)
+  ; ("small_graph_2", small_graph_2)
+  ; ("big_graph", big_graph)
+  ; ("graph_file", graph_file)
+  ; ("goal_graph", goal_graph) ]
+
+(* test pour tous les graph donnée au début du fichier
+   qui sont dans la graph_list*)
+let _ =
+  List.fold_left
+    (fun acc (name, g) ->
+      Printf.printf "\n \nGraph : %s \n" name ;
+      all_test g )
+    () graph_list ;
+  Printf.printf "\n\n"

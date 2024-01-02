@@ -1,13 +1,8 @@
 (**
 @file graph.ml
-@brief implémentation d'un graph ordonnée 
+@author Lapu Matthias
+@warning Comments are in french
 *)
-
-(* Exception pour les ensembles vides *)
-exception EmptySet
-
-(* Exception pour les dictionnaires vides *)
-exception EmptyMap
 
 (*
    Exemple 1 : 
@@ -357,6 +352,70 @@ module type S = sig
   @raises Rien
   *)
   val get3rd : 'a * 'b * 'c -> 'c
+
+  (**
+  @requires un ensemble de chemin 
+  @ensures le bottleneck de l'ensemble
+  @raises Rien
+  *)
+  val get_bottleneck : (node * int * int) list -> int
+
+  (**
+  @requires un ensemble de chemin et un graph
+  @ensures un booléen indiquant si il y a un flot bloquant
+  @raises Rien
+  *)
+  val there_is_blocking_flow :
+    (node * 'a * 'b) list -> (int * int) NodeMap.t NodeMap.t -> bool
+
+  (**
+  @requires 2 noeuds , une valeur min,max et un graph
+  @ensures le graph avec la valeur min,max appliqué à l'arête
+  @raises Rien
+  *)
+  val change_flow :
+       node
+    -> node
+    -> 'a * 'b
+    -> ('a * 'b) NodeMap.t NodeMap.t
+    -> ('a * 'b) NodeMap.t NodeMap.t
+
+  (**
+  @requires un bottleneck, le min, le max 
+  @ensures le min et le max modifié en fonction du bottleneck
+  @raises Rien
+  *)
+  val add_until_saturated : int -> int -> int -> int * int
+
+  val apply_bottleneck :
+       (node * int * int) list
+    -> (int * int) NodeMap.t NodeMap.t
+    -> (int * int) NodeMap.t NodeMap.t
+
+  (**
+  @requires un graph
+  @ensures une liste des noeuds, ou une arête part de celui-ci et est saturé
+  @raises Rien
+  *)
+  val list_of_blacklisted_node : ('a * 'a) NodeMap.t NodeMap.t -> node list
+
+  (**
+  @requires  un noeud , un graph
+  @ensures le flot maximal arrivant au noeud
+  @raises rien
+  *)
+  val get_maximum_flow_from_node : node -> (int * 'b) NodeMap.t NodeMap.t -> int
+
+  (**
+  @requires un noeud de départ, un noeud d'arrivé, un graph
+  @ensures dinic appliqué à un graph
+  @raises Rien
+  *)
+  val dinic :
+       node
+    -> node
+    -> (int * int) NodeMap.t NodeMap.t
+    -> (int * int) NodeMap.t NodeMap.t
 
   (*********************** cleaning function **********************************)
 
@@ -775,10 +834,11 @@ module Make (X : Map.OrderedType) = struct
   let get3rd (n1, n2, n3) = n3
 
   (* fonction qui prend un chemin et qui retourne le flot bottleneck *)
-  (* il faut trouver le plus petit max de la liste *)
   let get_bottleneck l =
     List.fold_left
       (fun acc (n1, min, max) ->
+        (* pour cela on regarde si on a commencé avec un flot = 0*)
+        (* et on prendra toujours le plus petit intervalle max - min *)
         if acc = 0 then
           max - min
         else if max - min < acc then
@@ -798,7 +858,8 @@ module Make (X : Map.OrderedType) = struct
       match l with
       | [] | [_] ->
           false (* on a besoin de 2 noeud pour avoir le flot*)
-      (* il faut regarder dans le graph car les informations des liste ne sont peut être plus à jour *)
+      (* il faut regarder dans le graph car les informations
+         des liste ne sont peut être plus à jour *)
       | (n1, min1, max1) :: (n2, min2, max2) :: t ->
           let min, max = get_flow (n1, n2) g in
           if min = max then
@@ -810,11 +871,16 @@ module Make (X : Map.OrderedType) = struct
 
   let change_flow n1 n2 (min, max) g =
     let succs_of_n1 = succs n1 g in
+    (* on remplace *)
     let new_succs_n1 = NodeMap.add n2 (min, max) succs_of_n1 in
     NodeMap.add n1 new_succs_n1 g
 
-  (* en appliquant le bottleneck à la liste à l'envers, donc de start à goal, on le parcourt également, si on sature une arête on la supprime du graphe , on refait l'ensemble à partir de ça et on recommence ? *)
+  (* en appliquant le bottleneck à la liste à l'envers,
+     donc de start à goal, on le parcourt également,
+     si on sature une arête on la supprime de l'ensemble,
+     on refait l'ensemble à partir de ça et on recommence *)
 
+  (* on ne veut pas avoir 90 / 7 par ex, il faut donc ajouter en saturant *)
   let add_until_saturated bneck borneMin borneMax =
     let remain = borneMax - borneMin in
     if remain > 0 then
@@ -829,12 +895,12 @@ module Make (X : Map.OrderedType) = struct
   @warning list_of_path est dans le bon sens
   *)
   let apply_bottleneck list_of_path g =
+    (* on regarde si il y a un flot bloquant dans le chemin*)
     if there_is_blocking_flow list_of_path g then
       g
     else
       (* il n'y a aucun flot bloquant la ou on se situe*)
       let bneck = get_bottleneck list_of_path in
-      Printf.printf "bottleneck : %d\n" bneck ;
       (* on applique le bottleneck à toutes les arêtes *)
       let rec aux l graphAux =
         match l with
@@ -864,7 +930,7 @@ module Make (X : Map.OrderedType) = struct
           succs acc )
       g []
 
-  let get_max_flow goal g =
+  let get_maximum_flow_from_node goal g =
     NodeMap.fold
       (fun noeudStart succs acc ->
         NodeMap.fold
@@ -911,8 +977,6 @@ module Make (X : Map.OrderedType) = struct
     in
     NodeSet.diff set_of_all_node set_of_node_shortest_path
 
-  (* fonction qui prend un graph et enlève les noeuds
-     qui ne font pas partie du plus court chemin *)
   let clean_graph start goal g =
     let blacklisted = blacklisted_node start goal g in
     NodeSet.fold (fun node acc -> remove_node node acc) blacklisted g
@@ -920,8 +984,6 @@ module Make (X : Map.OrderedType) = struct
   let clean_set_from_node n ens =
     SetOfPath.filter (fun listOfPath -> not (mem_set_of_path n listOfPath)) ens
 
-  (* fonction qui prend un ensemble de chemin, une liste de noeud
-     et supprime tous les chemins dont le noeud appartient *)
   let clean_set s l =
     List.fold_left (fun acc noeud -> clean_set_from_node noeud acc) s l
 end
