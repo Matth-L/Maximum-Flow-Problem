@@ -516,7 +516,7 @@ module Make (X : Map.OrderedType) = struct
   (**********************  FOLD FUNCTION ***********************************)
 
   (*
-     le fold n'est fait que sur les clé, donc les noeuds
+     le fold n'est fait que sur les clé, dans notre cas ce sont les noeuds
   *)
   let fold_node f g v0 =
     NodeMap.fold (fun currNode _ acc -> f currNode acc) g v0
@@ -635,6 +635,8 @@ module Make (X : Map.OrderedType) = struct
       failwith "number_of_outgoing_edge : le noeud n'existe pas"
 
   (******************** GETTER FUNCTION ****************************)
+
+  (* on récupère (min,max) *)
   let get_flow (n1, n2) g =
     if mem_edge n1 n2 g then
       let succs_of_n1 = succs n1 g in
@@ -651,6 +653,7 @@ module Make (X : Map.OrderedType) = struct
      a --(1,2)---> b
      |
      |----(3,4)----> c
+     utile uniquement pour les tests et pour l'énoncé
   *)
 
   let list_to_graph l =
@@ -832,7 +835,6 @@ module Make (X : Map.OrderedType) = struct
         les arêtes valides ; si on atteint la destination,
         on met le poids de toutes les arêtes par lequel on est passé à jour,
         c'est à dire au flot bloquant
-        (puis blacklist les noeuds empruntés saturé)
       - On s'arrête quand on ne peut plus atteindre la destination
         par des arêtes qui n'ont pas déja été utilisé
         (regarder si le noeud est dans la blacklist)
@@ -878,6 +880,7 @@ module Make (X : Map.OrderedType) = struct
     in
     aux list_of_path
 
+  (* remplace (min,max) *)
   let change_flow n1 n2 (min, max) g =
     let succs_of_n1 = succs n1 g in
     (* on remplace *)
@@ -924,22 +927,6 @@ module Make (X : Map.OrderedType) = struct
       in
       aux list_of_path g
 
-  (* une itération est faite, il faut maintenant supprimer les arêtes *)
-
-  (* on crée une liste ou n1 ---> x  est saturé, on stock n1 ,
-     dès qu'il apparait dans un chemin on dégage le chemin*)
-  let list_of_blacklisted_node g =
-    NodeMap.fold
-      (fun noeudStart succs acc ->
-        NodeMap.fold
-          (fun noeudEnd (min, max) acc1 ->
-            if min = max then
-              noeudStart :: acc1
-            else
-              acc1 )
-          succs acc )
-      g []
-
   (* il nécessaire d'avoir la même fonctoin
      pour quand une arête est modifié*)
   let list_of_modified_node g =
@@ -955,6 +942,8 @@ module Make (X : Map.OrderedType) = struct
           succs acc )
       g []
 
+  (* on récupère la valeur min de l'ensemble des arêtes qui vont
+     vers goal *)
   let get_maximum_flow_from_node goal g =
     NodeMap.fold
       (fun noeudStart succs acc ->
@@ -968,10 +957,14 @@ module Make (X : Map.OrderedType) = struct
       g 0
 
   let rec dinic start goal g =
+    (* on récupère l'ensemble des chemins
+       il n'y a aucun chemin qui possède une arête saturé *)
     let shortest_path = all_shortest_paths start goal g in
+    (* si il n'y a plus de chemin, on a fini *)
     if shortest_path = SetOfPath.empty then
       g
     else
+      (* on applique le bottleneck à tous les chemins*)
       let g =
         SetOfPath.fold
           (fun path acc -> apply_bottleneck (List.rev path) acc)
@@ -984,6 +977,9 @@ module Make (X : Map.OrderedType) = struct
   (*les niveaux se font uniquement à partir des chemins les plus courts
     vers le puits, à la fin on a un ensemble de tous les noeuds
     qui ne font pas partie des plus courts chemins*)
+
+  (* aucune de ces fonctions n'a été utilisé car finalement
+     le graph de niveau n'a pas été faits *)
 
   let blacklisted_node start goal g =
     (* on créer un ensemble qui contient tous les noeuds du graph *)
@@ -1011,4 +1007,18 @@ module Make (X : Map.OrderedType) = struct
 
   let clean_set s l =
     List.fold_left (fun acc noeud -> clean_set_from_node noeud acc) s l
+
+  (* on crée une liste ou n1 ---> x  est saturé, on stock n1 ,
+     dès qu'il apparait dans un chemin on dégage le chemin*)
+  let list_of_blacklisted_node g =
+    NodeMap.fold
+      (fun noeudStart succs acc ->
+        NodeMap.fold
+          (fun noeudEnd (min, max) acc1 ->
+            if min = max then
+              noeudStart :: acc1
+            else
+              acc1 )
+          succs acc )
+      g []
 end
