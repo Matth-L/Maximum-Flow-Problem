@@ -4,6 +4,8 @@ This project is a class assignment at ENSIIE in the "functional programming" cou
 The goal was to implement the Dinic algorithm to solve the maximum flow problem using [Ocaml](https://ocaml.org/).
 In the context of this project, we will use it to maximize the flow of coffee from a source to a sink.
 
+![Dinic's algorithm](img/Dinic_algorithm.png)
+
 This project is split into 3 parts : 
 - Implementation of the graph data structure 
 - Implementation of the BFS algorithm
@@ -65,3 +67,4 @@ This command will run the set of test made to test the implementation of the gra
 The file analyse.ml and analyse.mli are not written by us.
 They are provided by the teacher of the course.
 Comments are in French.
+The picture's from wikipedia.
