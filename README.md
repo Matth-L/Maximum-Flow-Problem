@@ -5,9 +5,9 @@ The goal was to implement the Dinic algorithm to solve the maximum flow problem 
 In the context of this project, we will use it to maximize the flow of coffee from a source to a sink.
 
 This project is split into 3 parts : 
-- The first part is the implementation of the graph data structure 
-- The second part is the implementation of the BFS algorithm
-- The third part is the implementation of the Dinic algorithm 
+- Implementation of the graph data structure 
+- Implementation of the BFS algorithm
+- Implementation of the Dinic algorithm 
 
 ## Table of contents
 
@@ -36,14 +36,14 @@ make
 Then to run the project, you can use the following command:
 
 ```bash
-./phase1 "name_of_file_.txt"
+./phase1 "name_of_file.txt"
 ```
 This command will run the second part of the project, which is the implementation of the BFS algorithm.
 It will use an input file to create a graph, and then it will run the algorithm.
 An output file will then be created
 
 ```bash
-./phase2 "name_of_file_.txt"
+./phase2 "name_of_file.txt"
 ```
 This command will run the third part of the project which is the implementation of the Dinic algorithm and also create an output file
 
@@ -64,4 +64,4 @@ This command will run the set of test made to test the implementation of the gra
 
 The file analyse.ml and analyse.mli are not written by us.
 They are provided by the teacher of the course.
-Comments are in French because the course is in French.
+Comments are in French.
