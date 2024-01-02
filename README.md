@@ -37,24 +37,24 @@ To compile the project, you can use the following command:
 make 
 ```
 
-Then to run the project, you can use the following command:
+Then to run the project, you can use those commands:
 
 ```bash
 ./phase1 "name_of_file.txt"
 ```
 This command will run the second part of the project, which is the implementation of the BFS algorithm.
 It will use an input file to create a graph, and then it will run the algorithm.
-An output file will then be created
+An output file will then be created.
 
 ```bash
 ./phase2 "name_of_file.txt"
 ```
-This command will run the third part of the project which is the implementation of the Dinic algorithm and also create an output file
+This command will run the third part of the project which is the implementation of the Dinic algorithm and also create an output file.
 
 ```bash
 ./test
 ```
-This command will run the set of test made to test the implementation of the graph data structure with the BFS algorithm and the Dinic algorithm
+This command will run the set of test made to test the implementation of the graph data structure with the BFS algorithm and the Dinic algorithm.
 
 
 
