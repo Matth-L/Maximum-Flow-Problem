@@ -14,7 +14,7 @@ phase1 : graph.cmo analyse.cmi analyse.cmo phase1.cmo
 	$(OCAMLFLAGS) graph.cmo analyse.cmo phase1.cmo -o $@ 
 
 phase2 : graph.cmo analyse.cmi analyse.cmo phase2.cmo
-	$(OCAMLFLAGS) $< -o $@
+	$(OCAMLFLAGS)  graph.cmo analyse.cmo phase2.cmo -o $@
 
 %.cmo : %.ml
 	$(OCAMLFLAGS) -c $<
