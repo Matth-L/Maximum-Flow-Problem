@@ -8,11 +8,11 @@ test :  graph.cmo testGraph.cmo
 	$(OCAMLFLAGS)  graph.cmo testGraph.cmo -o test
 	./test
 
-phase1 : graph.cmo analyse.cmi analyse.cmo main.cmo
-	$(OCAMLFLAGS) graph.cmo analyse.cmo main.cmo -o phase1 
+phase1 : graph.cmo analyse.cmi analyse.cmo phase1.cmo
+	$(OCAMLFLAGS) graph.cmo analyse.cmo phase1.cmo -o phase1 
 
-main.cmo : main.ml
-	$(OCAMLFLAGS) -c main.ml
+phase1.cmo : phase1.ml
+	$(OCAMLFLAGS) -c phase1.ml
 
 analyse.cmo : analyse.ml
 	$(OCAMLFLAGS) -c analyse.ml
@@ -22,9 +22,6 @@ analyse.cmi : analyse.mli
 
 graph.cmo : graph.ml
 	$(OCAMLFLAGS) -c graph.ml
-
-# graph.cmi : graph.mli
-# 	$(OCAMLFLAGS) -c graph.mli
 
 testGraph.cmo : testGraph.ml
 	$(OCAMLFLAGS) -c testGraph.ml

@@ -917,7 +917,8 @@ module Make (X : Map.OrderedType) = struct
 
   (* une itération est faite, il faut maintenant supprimer les arêtes *)
 
-  (* on crée une liste ou n1 ---> x  est saturé, on stock n1 , dès qu'il apparait dans un chemin on dégage le chemin*)
+  (* on crée une liste ou n1 ---> x  est saturé, on stock n1 ,
+     dès qu'il apparait dans un chemin on dégage le chemin*)
   let list_of_blacklisted_node g =
     NodeMap.fold
       (fun noeudStart succs acc ->

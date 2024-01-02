@@ -78,9 +78,8 @@ let graph_file =
 
 let graph_a_b = PGraph.list_to_graph_no_pond [('a', 'b')]
 
-(**
-color might break things idk
-*)
+(****************************** print ********************************)
+
 let pretty_print test nameOfTest commentaire =
   if test then
     Printf.printf "\027[32m\n%s %s : OK \n\027[0m" nameOfTest commentaire
