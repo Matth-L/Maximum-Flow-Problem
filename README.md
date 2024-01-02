@@ -4,7 +4,9 @@ This project is a class assignment at ENSIIE in the "functional programming" cou
 The goal was to implement the Dinic algorithm to solve the maximum flow problem using [Ocaml](https://ocaml.org/).
 In the context of this project, we will use it to maximize the flow of coffee from a source to a sink.
 
-![Dinic's algorithm](img/Dinic_algorithm.png)
+<p align="center">
+    <img src="img/Dinic_algorithm.png" alt="Dinic's algorithm">
+</p>
 
 This project is split into 3 parts : 
 - Implementation of the graph data structure 
