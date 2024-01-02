@@ -284,6 +284,9 @@ module type S = sig
   val list_to_graph_no_pond :
     (node * node) list -> (int * int) NodeMap.t NodeMap.t
 
+  val list_to_graph_enonce :
+    (node * node * int) list -> (int * int) NodeMap.t NodeMap.t
+
   (****************************************************************************)
   (****************************************************************************)
   (***************************** Phase 1 **************************************)
@@ -660,6 +663,11 @@ module Make (X : Map.OrderedType) = struct
       (fun (start, finish) acc -> add_node start 0 1 finish acc)
       l empty
 
+  let list_to_graph_enonce l =
+    List.fold_right
+      (fun (start, finish, pond) acc -> add_node start 0 pond finish acc)
+      l empty
+
   (****************************************************************************)
   (****************************************************************************)
   (***************************** Phase 1 **************************************)
@@ -925,6 +933,21 @@ module Make (X : Map.OrderedType) = struct
         NodeMap.fold
           (fun noeudEnd (min, max) acc1 ->
             if min = max then
+              noeudStart :: acc1
+            else
+              acc1 )
+          succs acc )
+      g []
+
+  (* il nécessaire d'avoir la même fonctoin
+     pour quand une arête est modifié*)
+  let list_of_modified_node g =
+    NodeMap.fold
+      (fun noeudStart succs acc ->
+        NodeMap.fold
+          (fun noeudEnd (min, max) acc1 ->
+            (* on regarde si min a été modifié*)
+            if min != 0 then
               noeudStart :: acc1
             else
               acc1 )
