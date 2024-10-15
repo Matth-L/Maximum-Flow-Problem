@@ -1,4 +1,4 @@
-# Cafe-Flow-Maximizer
+# Solving the Maximum Flow Problem with Dinic's Algorithm
 
 This project is a class assignment at ENSIIE in the "functional programming" course. 
 The goal was to implement the Dinic algorithm to solve the maximum flow problem using [Ocaml](https://ocaml.org/).
